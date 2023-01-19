@@ -5,11 +5,11 @@ _currently only supports Waveshare 3.7" ePaper HAT_
 
 ## What can it do?
 
-#### Anti-aliasing
+### Anti-aliasing
 
 Rough edges? With `getPixelLUT` custom transition function, you can send pixel data that are multisampled from neighbor pixels.
 
-<img src="doc/antialiasing.jpg" width="400">
+<img src="doc/antialiasing.jpg" width="600">
 
 Yes, I know it looks terrible, especially that `c`... Although there's a white line that went through it.\
 But all you need to do is...
@@ -61,12 +61,12 @@ void Epepd::display() {
 
 Now you have smooth lines and kinda smooth text, without special fonts or drawing functions, and the same memory usage!
 
-#### Supersampling
+### Supersampling
 
 If you have plenty of RAM to spare, you can increase the `Adafruit_GFX` frame buffer resolution, and then use the `getPixelLUT` function to output an
 appropriate level of grey for smooth fonts too (as GFXFonts don't do anti-aliased fonts, what about just supersample it?)
 
-<img src="doc/supersampling.jpg" width="400">
+<img src="doc/supersampling.jpg" width="600">
 
 And all you need to do is...
 
@@ -112,12 +112,12 @@ void Epepd::display() {
 
 and that's it. That's pretty intuitive if I say so myself.
 
-#### Mixed display modes
+### Mixed display modes
 
 What is stopping "4 shades of grey" and "partial update" from existing the same time? It is that there is only two sets of memory in the display controller. By
 storing the states ourselves, we can make partial updaate work without wiping the drawn greyscale image using the powerful `getPixelLUT` function.
 
-#### Maybe 8 shades of grey? How about 16?
+### Maybe 8 shades of grey? How about 16?
 
 By switching LUTs within a display update routine, maybe, just maybe, we can display even more levels of grey. Although the displays that have way higher
 resolutions and 16 levels of grey costs just 3 to 4 times more than this 3.7 inch display that is apparently not very popular.\
@@ -125,7 +125,7 @@ resolutions and 16 levels of grey costs just 3 to 4 times more than this 3.7 inc
 popular, especially the B/W/Red ones, but geez the red ones are barely usable with the painfully slow update speed and lack of *official* partial update
 support)
 
-#### Blur? Dithering? Effects!
+### Blur? Dithering? Effects!
 
 You get the point.
 
@@ -133,6 +133,83 @@ You get the point.
 
 Basically, the library _will_ allow you to do just about anything technically possible. But I probably will only implement some that I need, so that's why it is
 called the **Endless Possibility ePaper Display Library**, I'm just creating the framework, not implementing all kinds of dithering algorithms.
+
+---
+
+## Overpowered graphics buffer
+
+Graphics buffer in almost all libraries only do one thing, to display. Because microcontrollers have limited memory, most only have one set, or even less with
+paged drawing.\
+To achieve the flexibility I want, I'd like multiple frame buffers to act like masks and textures. But our poor ESP32 have limited memory.
+
+### Shapes mode
+
+If you think about masks, they are usually just rectangles, maybe sometimes circles. Why not use those primitives as masks? If so, we can save tons of memory.
+How about more complex shapes? What if in some occasion I want to use some logo as a mask? Therefore, I decided to combine shape masks and bitmaps, so
+the `EpFunction`s don't have to care about the type. The `EpBitmap` will handle both bitmaps and vector-ish shapes-based images.\
+One rectangle or circle probably won't be enough for a mask, so it is now a list of shapes that will do
+`ADD`, `SUBTRACT`, `INTERSECT`, `INTERSECT_USE_BEHIND` and `EXCLUDE` for you to build your complex shapes.
+
+There are also multiple ways of combining the bitmap layer and the shapes layer.\
+_(don't add too many shapes, under 10 it's basically unnoticeable, but a few hundreds will make rendering pretty slow)_
+
+```cpp
+enum BitmapShapeBlendMode {
+    BITMAP_ONLY, SHAPES_ONLY,             //   if shape    | else
+    BITMAP_ADD_SHAPES,                    //   shape       | bitmap
+    BITMAP_SUBTRACT_SHAPES,               //   transparent | bitmap
+    BITMAP_INTERSECT_SHAPES,              //   bitmap      | transparent
+    //                      if bitmap != transparent color | else
+    SHAPES_ADD_BITMAP,                    //   bitmap      | shape
+    SHAPES_SUBTRACT_BITMAP,               //   transparent | shape
+    SHAPES_INTERSECT_BITMAP,              //   shape       | transparent
+};
+```
+
+Of course, it will be even more powerful if you could have multiple layers of shapes and bitmaps, but I don't think that is really needed. In fact, all
+these `BitmapShapeBlendMode` aren't supposed to exist. Shapes mode exists only to build simple masks to feed to `EpFunction`s, it just went a bit out of
+control...
+
+Here's an example of a single `EpBitmap` doing... not much
+
+<img src="doc/blend_shapes.jpg" width="600">
+
+```cpp
+gfxBuffer.setTransparencyPattern(); // you can also pick a color
+gfxBuffer.setBitmapShapeBlendMode(EpBitmap::BITMAP_INTERSECT_SHAPES); // keep bitmap where shape intersects
+epd.fillScreen(WHITE); // the Mojang-logo-shaped area
+epd.setTextColor(BLACK); // the "Conn" text
+epd.setFont(&HarmonyOS_Sans_Medium16pt7b);
+epd.setCursor(10, 100);
+epd.print("Connecting to WiFi...");
+gfxBuffer.setRectangle(20, 5, 160, 200, BLACK, EpShape::ADD);
+gfxBuffer.setCircle(140, 80, 120, BLACK, EpShape::SUBTRACT); // order matters
+
+epd.display();
+```
+
+### Space efficient
+
+You want 3 bits per pixel for 8 shades of grey? With `EpBitmap` you can do that. It will also be saved into chunks, so it will fit in the available memory
+spaces. Also, you can just save things in shapes mode, which will barely take up any space.
+
+---
+
+Here are the frame buffers needed for epepd:
+
+```cpp
+// the frame buffer for Adafruit_GFX functions
+EpBitmap gfxBuffer(480, 280, 4); // if you want 16 grey levels (displaying over 4 is not supported yet)
+EpBitmap gfxBuffer(960, 560, 1); // if you want to supersample or do some weird stuff with the other 3 frames
+
+// the copy of display ram
+// it's just 16.8KB each, I think these will be used fairly often by all kinds of EpFunctions, so reading back from the display is not really reasonable.
+EpBitmap redRam(EPD_WIDTH, EPD_HEIGHT, 1); // LUT bit 1, previous (for partial)
+EpBitmap bwRam(EPD_WIDTH, EPD_HEIGHT, 1);  // LUT bit 0, current (for partial)
+```
+
+Basically it's really convenient and flexible, if not a bit slow... _(currently pixelToLUT() takes a whopping 100+ms to run)_\
+Maybe you can suggest how do I make it faster? It's just bit-packed arrays...
 
 ## Display support
 

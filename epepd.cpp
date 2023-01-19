@@ -1,6 +1,6 @@
 #include "Epepd.h"
 
-//#define USE_PERCEIVED_LUMINANCE
+#define USE_PERCEIVED_LUMINANCE
 #define BUSY_TIMEOUT 5000000
 #define RESET_DURATION 10
 
@@ -94,7 +94,7 @@ void Epepd::displayTest() {
     writeDataEnd();
 
     writeCommand(0x22);
-    writeData(0xcf); // display mode 2 with ping pong
+    writeData(0xcf); // display blendMode 2 with ping pong
 
     writeCommand(0x20); // activate
     waitUntilIdle();
@@ -152,7 +152,7 @@ void Epepd::initDisplay() {
     writeData(0xff);
     writeData(0xff);
     writeData(0xff);
-    writeData(0x4f); // enable ping pong for mode 2
+    writeData(0x4f); // enable ping pong for blendMode 2
     writeData(0xff);
     writeData(0xff);
     writeData(0xff);
@@ -183,6 +183,8 @@ void Epepd::drawPixel(int16_t x, int16_t y, uint16_t color) {
 void Epepd::display() {
     initDisplay();
 
+    Serial.printf("gfxBuffer has %d shapes\n", gfxBuffer->shapes.size());
+
     writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
 //        int blackPixels = 0;
 //        for (int dx = -1; dx <= 1; dx++)
@@ -191,17 +193,22 @@ void Epepd::display() {
 //        const uint8_t defBlack[] = {LUT0, LUT0, LUT1, LUT1, LUT2, LUT2, LUT2, LUT2, LUT3, LUT3};
 //        const uint8_t defWhite[] = {LUT0, LUT0, LUT0, LUT0, LUT0, LUT1, LUT1, LUT1, LUT2, LUT3};
 //        return (epepd.gfxBuffer->getPixel(x, y) ? defBlack[blackPixels] : defWhite[blackPixels]);
+        return (epepd.gfxBuffer->getPixel(x, y) >> 6) & 0b11;
 
-        int blackPixels = 0;
-        for (int dx = 0; dx <= 1; dx++)
-            for (int dy = 0; dy <= 1; dy++)
-                if (epepd.gfxBuffer->getPixel(x * 2 + dx, y * 2 + dy)) blackPixels++;
-        const uint8_t def[] = {LUT0, LUT1, LUT1, LUT2, LUT3};
-        return def[blackPixels];
+//        int blackPixels = 0;
+//        for (int dx = 0; dx <= 1; dx++)
+//            for (int dy = 0; dy <= 1; dy++)
+//                if (epepd.gfxBuffer->getPixel(x * 2 + dx, y * 2 + dy)) blackPixels++;
+//        const uint8_t def[] = {LUT0, LUT1, LUT1, LUT2, LUT3};
+//        return def[blackPixels];
     });
 
+    updateDisplay();
+}
+
+void Epepd::updateDisplay() {
     writeCommand(0x22);
-    writeData(0xCF); // display mode 2 with ping pong
+    writeData(0xCF); // display blendMode 2 with ping pong
 
     writeCommand(0x20); // activate
     waitUntilIdle();
@@ -214,6 +221,7 @@ uint16_t Epepd::getLuminance(uint16_t color) {
     float b = float(color & 0b0000000000011111 << 11);
     return std::min(uint16_t((0.299f * r * r + 0.587f * g * g + 0.114f * b * b) * 65536.f), uint16_t(0xFFFF));
 #else
+    /// TODO: wtf how would this work
     return (color & 0b1111100000000000) + (color & 0b0000011111100000 << 5) + (color & 0b0000000000011111 << 11);
 #endif
 }
@@ -341,7 +349,7 @@ void Epepd::waitUntilIdle() {
 }
 
 void Epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
-    writeCommand(0x11); // data entry mode setting
+    writeCommand(0x11); // data entry blendMode setting
     writeData(0x03); // x increment, y increment, updated on x direction
 
     writeCommand(0x44); // set ram x address start/end position
@@ -378,7 +386,7 @@ void Epepd::hwReset() {
 
 void Epepd::hibernate() {
     powerOff();
-    writeCommand(0x10); // deep sleep mode
+    writeCommand(0x10); // deep sleep blendMode
     writeData(0x03); // enter deep sleep
     isHibernating = true;
 }

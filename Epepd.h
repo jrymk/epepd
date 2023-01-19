@@ -15,6 +15,8 @@
 #include <SPI.h>
 #include <functional>
 #include "EpBitmap.h"
+#include "EpFunction.h"
+#include "EpFunctions/EpBuiltInFunctions.h"
 
 class Epepd : public Adafruit_GFX {
 public:
@@ -43,9 +45,13 @@ public:
     //              depending on the rotation, this function will get values x from 0 to width OR from 0 and height, and y the other way around
     void writeToDisplay(std::function<uint8_t(Epepd &epepd, int16_t x, int16_t y)> getPixelLut);
 
+    void updateDisplay();
+
     void setRotation(uint8_t r) override;
 
     uint8_t getRotation(void) const;
+
+    static uint16_t getLuminance(uint16_t color);
 
 private:
     static const int16_t EPD_WIDTH = 280;
@@ -65,7 +71,6 @@ private:
     bool isPoweredOn = false;
     bool isHibernating = false;
 
-    static uint16_t getLuminance(uint16_t color);
 
     int16_t csPin, dcPin, rstPin, busyPin;
     SPIClass* spi;
