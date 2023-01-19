@@ -184,11 +184,18 @@ void Epepd::display() {
     initDisplay();
 
     writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
+//        int blackPixels = 0;
+//        for (int dx = -1; dx <= 1; dx++)
+//            for (int dy = -1; dy <= 1; dy++)
+//                if (epepd.gfxBuffer->getPixel(x + dx, y + dy)) blackPixels++;
+//        const uint8_t defBlack[] = {LUT0, LUT0, LUT1, LUT1, LUT2, LUT2, LUT2, LUT2, LUT3, LUT3};
+//        const uint8_t defWhite[] = {LUT0, LUT0, LUT0, LUT0, LUT0, LUT1, LUT1, LUT1, LUT2, LUT3};
+//        return (epepd.gfxBuffer->getPixel(x, y) ? defBlack[blackPixels] : defWhite[blackPixels]);
+
         int blackPixels = 0;
-        if (epepd.gfxBuffer->getPixel(x * 2, y * 2)) blackPixels++;
-        if (epepd.gfxBuffer->getPixel(x * 2 + 1, y * 2)) blackPixels++;
-        if (epepd.gfxBuffer->getPixel(x * 2, y * 2 + 1)) blackPixels++;
-        if (epepd.gfxBuffer->getPixel(x * 2 + 1, y * 2 + 1)) blackPixels++;
+        for (int dx = 0; dx <= 1; dx++)
+            for (int dy = 0; dy <= 1; dy++)
+                if (epepd.gfxBuffer->getPixel(x * 2 + dx, y * 2 + dy)) blackPixels++;
         const uint8_t def[] = {LUT0, LUT1, LUT1, LUT2, LUT3};
         return def[blackPixels];
     });

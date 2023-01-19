@@ -7,11 +7,63 @@ _currently only supports Waveshare 3.7" ePaper HAT_
 
 #### Anti-aliasing
 
-Rough edges? With `bufferToLUT` custom transition function, you can send pixel data that are multisampled from neighbor pixels.
+Rough edges? With `getPixelLUT` custom transition function, you can send pixel data that are multisampled from neighbor pixels.
+
+<img src="doc/antialiasing.jpg" width="400">
+
+Yes, I know it looks terrible, especially that `c`... Although there's a white line that went through it.\
+But all you need to do is...
+
+```cpp
+EpBitmap gfxBuffer(480, 280, 1); // set the Adafruit_GFX buffer
+Epepd epd(gfxBuffer, EPAPER_CS, EPAPER_DC, EPAPER_RST, EPAPER_BUSY);
+
+void setup() {
+    epd.init();
+    gfxBuffer.allocate(4096); // allocate the buffer in 4KB chunks so that it will fit in memory
+    
+    // start drawing
+    epd.setTextColor(BLACK);
+    epd.setCursor(10, 100);
+    epd.print("Connecting to\nWiFi...");
+    epd.setFont(&HarmonyOS_Sans_Medium8pt7b);
+    epd.setCursor(10, 180);
+    epd.print("Connecting to WiFi...");
+    epd.drawLine(0, 150, 260, 9, BLACK);
+    epd.drawLine(0, 10, 150, 425, WHITE);
+
+    // display
+    epd.display();
+}
+```
+
+and for the display function override... _(the actual "plugin" style classes has not been implemented yet)_
+
+```cpp
+void Epepd::display() {
+    initDisplay();
+    
+    writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
+        int blackPixels = 0;
+        for (int dx = -1; dx <= 1; dx++)
+            for (int dy = -1; dy <= 1; dy++)
+                if (epepd.gfxBuffer->getPixel(x + dx, y + dy)) blackPixels++;
+        const uint8_t defBlack[] = { LUT0, LUT0, LUT1, LUT1, LUT2, LUT2, LUT2, LUT2, LUT3, LUT3 };
+        const uint8_t defWhite[] = { LUT0, LUT0, LUT0, LUT0, LUT0, LUT1, LUT1, LUT1, LUT2, LUT3 };
+        // what LUT0-3 does depend on the LUT, which will be customizable too
+        // in this case it is just a normal 4-shades-of-grey LUT
+        return (epepd.gfxBuffer->getPixel(x, y) ? defBlack[blackPixels] : defWhite[blackPixels]);
+    });
+    
+    updateDisplay();
+}
+```
+
+Now you have smooth lines and kinda smooth text, without special fonts or drawing functions, and the same memory usage!
 
 #### Supersampling
 
-If you have plenty of RAM to spare, you can increase the `Adafruit_GFX` frame buffer resolution, and then use the `bufferToLUT` function to output an
+If you have plenty of RAM to spare, you can increase the `Adafruit_GFX` frame buffer resolution, and then use the `getPixelLUT` function to output an
 appropriate level of grey for smooth fonts too (as GFXFonts don't do anti-aliased fonts, what about just supersample it?)
 
 <img src="doc/supersampling.jpg" width="400">
@@ -26,19 +78,20 @@ void setup() {
     epd.init();
     gfxBuffer.allocate(4096); // allocate the buffer in 4KB chunks so that it will fit in memory
     
-    // start drawing
+    // start drawing, with everything doubled
     epd.setFont(&Aero_Matics_Bold44pt7b);
     epd.fillScreen(WHITE);
     epd.setTextColor(BLACK);
-    epd.setCursor(10, 300);
+    epd.setCursor(20, 200);
     epd.print("Connecting to\nWiFi...");
+    ...
     
     // display
     epd.display();
 }
 ```
 
-and for the display function override... _(the actual "plugin" style classes has not been implemented yet)_
+and for the display function override...
 
 ```cpp
 void Epepd::display() {
@@ -46,15 +99,12 @@ void Epepd::display() {
     
     writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
         int blackPixels = 0;
-        if (epepd.gfxBuffer->getPixel(x * 2, y * 2)) blackPixels++;
-        if (epepd.gfxBuffer->getPixel(x * 2 + 1, y * 2)) blackPixels++;
-        if (epepd.gfxBuffer->getPixel(x * 2, y * 2 + 1)) blackPixels++;
-        if (epepd.gfxBuffer->getPixel(x * 2 + 1, y * 2 + 1)) blackPixels++;
+        for (int dx = 0; dx <= 1; dx++)
+            for (int dy = 0; dy <= 1; dy++)
+                if (epepd.gfxBuffer->getPixel(x * 2 + dx, y * 2 + dy)) blackPixels++;
         const uint8_t def[] = {LUT0, LUT1, LUT1, LUT2, LUT3};
         return def[blackPixels];
     });
-    // what LUT0-3 does depend on the LUT, which will be customizable too
-    // in this case it is just a normal 4-shades-of-grey LUT
     
     updateDisplay();
 }
@@ -65,7 +115,7 @@ and that's it. That's pretty intuitive if I say so myself.
 #### Mixed display modes
 
 What is stopping "4 shades of grey" and "partial update" from existing the same time? It is that there is only two sets of memory in the display controller. By
-storing the states ourselves, we can make partial updaate work without wiping the drawn greyscale image using the powerful `bufferToLUT` function.
+storing the states ourselves, we can make partial updaate work without wiping the drawn greyscale image using the powerful `getPixelLUT` function.
 
 #### Maybe 8 shades of grey? How about 16?
 
