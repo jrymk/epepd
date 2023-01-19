@@ -1,15 +1,16 @@
-#include "epepd.h"
+#include "Epepd.h"
 
+//#define USE_PERCEIVED_LUMINANCE
 #define BUSY_TIMEOUT 5000000
 #define RESET_DURATION 10
 
-const unsigned char epepd::lut_4G[] PROGMEM =
+const unsigned char Epepd::lut_4G[] PROGMEM =
         {
 //                ph0    1     2     3     4     5     6     7     8     9
-                0x40, 0x48, 0x48, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut00
-                0x08, 0x48, 0x48, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut01
-                0x02, 0x48, 0x48, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut10
                 0x20, 0x48, 0x48, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut11
+                0x02, 0x48, 0x48, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut10
+                0x08, 0x48, 0x48, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut01
+                0x40, 0x48, 0x48, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut00
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs vcom
                 //00    01    10    11    rp
                 0x02, 0x03, 0x01, 0x02, 0x00, // ph0
@@ -39,19 +40,20 @@ const unsigned char epepd::lut_4G[] PROGMEM =
 //                0x22, 0x22, 0x22, 0x22, 0x22
         };
 
-epepd::epepd(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin) :
-        Adafruit_GFX(WIDTH, HEIGHT),
+Epepd::Epepd(EpBitmap &gfxBuffer, int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin) :
+        Adafruit_GFX(gfxBuffer.width(), gfxBuffer.height()),
+        gfxBuffer(&gfxBuffer),
+        redRam(EPD_WIDTH, EPD_HEIGHT, 1),
+        bwRam(EPD_WIDTH, EPD_HEIGHT, 1),
         spi(&SPI),
         spiSettings(40000000, MSBFIRST, SPI_MODE0) {
     this->csPin = csPin;
     this->dcPin = dcPin;
     this->rstPin = rstPin;
     this->busyPin = busyPin;
-
-    heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
 }
 
-void epepd::init() {
+void Epepd::init() {
     pinMode(csPin, OUTPUT);
     digitalWrite(csPin, HIGH);
     pinMode(dcPin, OUTPUT);
@@ -59,32 +61,35 @@ void epepd::init() {
     hwReset();
     pinMode(busyPin, INPUT);
     spi->begin();
+    redRam.allocate(4200); // fits in 4 blocks
+    bwRam.allocate(4200);
+    Serial.printf("Display resolution: %d*%d\nAdafruit_GFX resolution: %d*%d\n", EPD_WIDTH, EPD_HEIGHT, Adafruit_GFX::width(), Adafruit_GFX::height());
 }
 
-void epepd::displayTest() {
+void Epepd::displayTest() {
     delay(100);
     initDisplay();
     writeCommand(0x24);
     writeDataBegin();
-    for (uint32_t i = 0; i < uint32_t(WIDTH) * uint32_t(HEIGHT) / 32; i++)
+    for (uint32_t i = 0; i < uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 32; i++)
         writeDataCont(0x00);
-    for (uint32_t i = 0; i < uint32_t(WIDTH) * uint32_t(HEIGHT) / 32; i++)
+    for (uint32_t i = 0; i < uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 32; i++)
         writeDataCont(0xFF);
-    for (uint32_t i = 0; i < uint32_t(WIDTH) * uint32_t(HEIGHT) / 32; i++)
+    for (uint32_t i = 0; i < uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 32; i++)
         writeDataCont(0x00);
-    for (uint32_t i = 0; i < uint32_t(WIDTH) * uint32_t(HEIGHT) / 32; i++)
+    for (uint32_t i = 0; i < uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 32; i++)
         writeDataCont(0xFF);
     writeDataEnd();
 
     writeCommand(0x26);
     writeDataBegin();
-    for (uint32_t i = 0; i < uint32_t(WIDTH) * uint32_t(HEIGHT) / 32; i++)
+    for (uint32_t i = 0; i < uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 32; i++)
         writeDataCont(0x00);
-    for (uint32_t i = 0; i < uint32_t(WIDTH) * uint32_t(HEIGHT) / 32; i++)
+    for (uint32_t i = 0; i < uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 32; i++)
         writeDataCont(0x00);
-    for (uint32_t i = 0; i < uint32_t(WIDTH) * uint32_t(HEIGHT) / 32; i++)
+    for (uint32_t i = 0; i < uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 32; i++)
         writeDataCont(0xFF);
-    for (uint32_t i = 0; i < uint32_t(WIDTH) * uint32_t(HEIGHT) / 32; i++)
+    for (uint32_t i = 0; i < uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 32; i++)
         writeDataCont(0xFF);
     writeDataEnd();
 
@@ -95,7 +100,7 @@ void epepd::displayTest() {
     waitUntilIdle();
 }
 
-void epepd::initDisplay() {
+void Epepd::initDisplay() {
     if (isHibernating)
         hwReset();
     delay(10);
@@ -153,7 +158,7 @@ void epepd::initDisplay() {
     writeData(0xff);
     writeData(0xff);
 
-    setRamWindow(0, 0, WIDTH, HEIGHT);
+    setRamWindow(0, 0, EPD_WIDTH, EPD_HEIGHT);
 
     writeCommand(0x32); // write lut register
     writeDataBegin();
@@ -170,37 +175,22 @@ void epepd::initDisplay() {
     powerOn();
 }
 
-void epepd::drawPixel(int16_t x, int16_t y, uint16_t color) {
-    if (x < 0 || x >= width() || y < 0 || y >= height())
-        return;
-    switch (getRotation()) {
-        case 1:
-            std::swap(x, y);
-            x = WIDTH - x - 1;
-            break;
-        case 2:
-            x = WIDTH - x - 1;
-            y = HEIGHT - y - 1;
-            break;
-        case 3:
-            std::swap(x, y);
-            y = HEIGHT - y - 1;
-            break;
-    }
-    uint16_t i = (x >> 1) + y * (width() >> 1);
-    uint16_t pixelData = getLuminance(color) >> 12; // take the last 4 bits
-    buffer[i] &= ~(0xF << ((1 - (x & 1)) * 4));
-    buffer[i] |= (pixelData << ((1 - (x & 1)) * 4));
+void Epepd::drawPixel(int16_t x, int16_t y, uint16_t color) {
+    gfxBuffer->setPixel(x, y, getLuminance(color) >> 8); // EpBitmap takes 8-bit color that may get truncated even more
 }
 
 
-void epepd::display() {
+void Epepd::display() {
     initDisplay();
-//    debugPrintBuffer(buffer, 4);
-    writeBufferToMemory([](epepd &buff, int16_t x, int16_t y) {
-//        Serial.printf("calc lut %d, %d is %d\n", x, y, (epepd::getBufferPixel(buff.buffer, 4, x, y)) ? 0b11 : 0b00);
-//        return (epepd::getBufferPixel(buff.buffer, x, y)) ? 0b11 : 0b00;
-        return (((x & 0b1000) + (y & 0b1000)) & 0b1000 ? 0b01 : 0b10);
+
+    writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
+        int blackPixels = 0;
+        if (epepd.gfxBuffer->getPixel(x * 2, y * 2)) blackPixels++;
+        if (epepd.gfxBuffer->getPixel(x * 2 + 1, y * 2)) blackPixels++;
+        if (epepd.gfxBuffer->getPixel(x * 2, y * 2 + 1)) blackPixels++;
+        if (epepd.gfxBuffer->getPixel(x * 2 + 1, y * 2 + 1)) blackPixels++;
+        const uint8_t def[] = {LUT0, LUT1, LUT1, LUT2, LUT3};
+        return def[blackPixels];
     });
 
     writeCommand(0x22);
@@ -210,7 +200,7 @@ void epepd::display() {
     waitUntilIdle();
 }
 
-uint16_t epepd::getLuminance(uint16_t color) {
+uint16_t Epepd::getLuminance(uint16_t color) {
 #ifdef USE_PERCEIVED_LUMINANCE
     float r = float(color & 0b1111100000000000);
     float g = float(color & 0b0000011111100000 << 5);
@@ -221,48 +211,79 @@ uint16_t epepd::getLuminance(uint16_t color) {
 #endif
 }
 
-void epepd::writeBufferToMemory(std::function<uint8_t(epepd &buff, int16_t x, int16_t y)> bufferToLUT) {
+void Epepd::writeToDisplay(std::function<uint8_t(Epepd &epepd, int16_t x, int16_t y)> getPixelLut) {
+    // rotation is handled here
+    // (the gfxBuffer is a graphics buffer, not a display buffer anymore, you draw right-side-up stuff on the buffer, and you decide which way to map to the display)
+
+    // try to not switch in the loop, with the cost of program size probably
     uint64_t start = esp_timer_get_time();
+    switch (getRotation()) {
+        case 1:
+            for (int16_t y = 0; y < EPD_HEIGHT; y++) {
+                for (int16_t x = 0; x < EPD_WIDTH; x++) {
+                    uint8_t lut = getPixelLut(*this, EPD_HEIGHT - y - 1, x);
+                    redRam.setPixel(x, y, lut << 6);
+                    bwRam.setPixel(x, y, lut << 7);
+                }
+            }
+            break;
+        case 2:
+            for (int16_t y = 0; y < EPD_HEIGHT; y++) {
+                for (int16_t x = 0; x < EPD_WIDTH; x++) {
+                    uint8_t lut = getPixelLut(*this, EPD_WIDTH - x - 1, EPD_HEIGHT - y - 1);
+                    redRam.setPixel(x, y, lut << 6);
+                    bwRam.setPixel(x, y, lut << 7);
+                }
+            }
+            break;
+        case 3:
+            for (int16_t y = 0; y < EPD_HEIGHT; y++) {
+                for (int16_t x = 0; x < EPD_WIDTH; x++) {
+                    uint8_t lut = getPixelLut(*this, y, EPD_WIDTH - x - 1);
+                    redRam.setPixel(x, y, lut << 6);
+                    bwRam.setPixel(x, y, lut << 7);
+                }
+            }
+            break;
+        default: // no rotation
+            for (int16_t y = 0; y < EPD_HEIGHT; y++) {
+                for (int16_t x = 0; x < EPD_WIDTH; x++) {
+                    uint8_t lut = getPixelLut(*this, x, y);
+                    redRam.setPixel(x, y, lut << 6);
+                    bwRam.setPixel(x, y, lut << 7);
+                }
+            }
+    }
+    Serial.printf("getPixelLut took %lldus\n", esp_timer_get_time() - start);
+
+    start = esp_timer_get_time();
+    uint32_t size = uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 8;
     writeCommand(0x26);
     writeDataBegin();
-    for (int32_t y = 0; y < HEIGHT; y++) {
-        for (int32_t xB = 0; xB < WIDTH; xB += 8) {
-            uint8_t data = 0;
-            for (int8_t b = 0; b < 8; b++) {
-                uint8_t lut = bufferToLUT(*this, int16_t(xB + b), int16_t(y));
-                data |= ((lut & 0b10) ? (1 << (7 - ((y * WIDTH + xB + b) & 0b111))) : 0);
-            }
-            writeDataCont(data);
-        }
-    }
+    redRam.streamBytesReset();
+    for (uint32_t b = 0; b < size; b++)
+        writeDataCont(redRam.streamBytesNext());
     writeDataEnd();
 
     writeCommand(0x24);
     writeDataBegin();
-    for (int32_t y = 0; y < HEIGHT; y++) {
-        for (int32_t xB = 0; xB < WIDTH; xB += 8) {
-            uint8_t data = 0;
-            for (int8_t b = 0; b < 8; b++) {
-                uint8_t lut = bufferToLUT(*this, int16_t(xB + b), int16_t(y));
-                data |= ((lut & 0b01) ? (1 << (7 - ((y * WIDTH + xB + b) & 0b111))) : 0);
-            }
-            writeDataCont(data);
-        }
-    }
+    bwRam.streamBytesReset();
+    for (uint32_t b = 0; b < size; b++)
+        writeDataCont(bwRam.streamBytesNext());
     writeDataEnd();
 
     Serial.printf("Sending two sets of display buffer took %lldus\n", esp_timer_get_time() - start);
 }
 
-uint8_t epepd::getBufferPixel(uint8_t* buffer, uint16_t x, uint16_t y) {
-    return buffer[uint32_t(y) * WIDTH + x];
+uint8_t Epepd::getBufferPixel(uint8_t* buffer, uint16_t x, uint16_t y) {
+    return buffer[uint32_t(y) * EPD_WIDTH + x];
 };
 
-uint8_t epepd::getBufferPixel(uint8_t* buffer, uint8_t bitsPerPixel, uint16_t x, uint16_t y) {
-    return (buffer[(uint32_t(y) * WIDTH + uint32_t(x)) * bitsPerPixel / 8] >> (bitsPerPixel - (uint32_t(y) * WIDTH + x) * bitsPerPixel % 8)) & ((1 << bitsPerPixel) - 1);
+uint8_t Epepd::getBufferPixel(uint8_t* buffer, uint8_t bitsPerPixel, uint16_t x, uint16_t y) {
+    return (buffer[(uint32_t(y) * EPD_WIDTH + uint32_t(x)) * bitsPerPixel / 8] >> (bitsPerPixel - (uint32_t(y) * EPD_WIDTH + x) * bitsPerPixel % 8)) & ((1 << bitsPerPixel) - 1);
 }
 
-void epepd::writeCommand(uint8_t c) {
+void Epepd::writeCommand(uint8_t c) {
     spi->beginTransaction(spiSettings);
     digitalWrite(dcPin, LOW);
     digitalWrite(csPin, LOW);
@@ -272,7 +293,7 @@ void epepd::writeCommand(uint8_t c) {
     spi->endTransaction();
 }
 
-void epepd::writeDataBegin() {
+void Epepd::writeDataBegin() {
     if (isWritingData)
         Serial.printf("ERROR: already writing data, did you forgot to end?\n");
     spi->beginTransaction(spiSettings);
@@ -280,23 +301,23 @@ void epepd::writeDataBegin() {
     isWritingData = true;
 }
 
-void epepd::writeData(uint8_t d) {
+void Epepd::writeData(uint8_t d) {
     writeDataBegin();
     writeDataCont(d);
     writeDataEnd();
 }
 
-void epepd::writeDataCont(uint8_t d) {
+void Epepd::writeDataCont(uint8_t d) {
     spi->transfer(d);
 }
 
-void epepd::writeDataEnd() {
+void Epepd::writeDataEnd() {
     digitalWrite(csPin, HIGH);
     spi->endTransaction();
     isWritingData = false;
 }
 
-void epepd::waitUntilIdle() {
+void Epepd::waitUntilIdle() {
     uint64_t start = esp_timer_get_time();
     while (true) {
         delay(1);
@@ -312,7 +333,7 @@ void epepd::waitUntilIdle() {
     Serial.printf("Wait took %lldus\n", esp_timer_get_time() - start);
 }
 
-void epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+void Epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     writeCommand(0x11); // data entry mode setting
     writeData(0x03); // x increment, y increment, updated on x direction
 
@@ -337,7 +358,7 @@ void epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     writeData(y >> 8);
 }
 
-void epepd::hwReset() {
+void Epepd::hwReset() {
     pinMode(rstPin, OUTPUT);
     digitalWrite(rstPin, HIGH);
     delay(RESET_DURATION);
@@ -348,14 +369,14 @@ void epepd::hwReset() {
     isHibernating = false;
 }
 
-void epepd::hibernate() {
+void Epepd::hibernate() {
     powerOff();
     writeCommand(0x10); // deep sleep mode
     writeData(0x03); // enter deep sleep
     isHibernating = true;
 }
 
-void epepd::powerOn() {
+void Epepd::powerOn() {
     if (!isPoweredOn) {
         writeCommand(0x22);
         writeData(0xc0); // enable clock signal -> enable analog
@@ -366,7 +387,7 @@ void epepd::powerOn() {
     isPoweredOn = true;
 }
 
-void epepd::powerOff() {
+void Epepd::powerOff() {
     if (isPoweredOn) {
         writeCommand(0x22);
         writeData(0x03); // disable analog -> disable clock signal
@@ -377,9 +398,9 @@ void epepd::powerOff() {
     isPoweredOn = false;
 }
 
-void epepd::debugPrintBuffer(uint8_t* buffer, uint8_t bitsPerPixel) {
-    for (uint16_t y = 0; y < HEIGHT; y++) {
-        for (uint16_t x = 0; x < WIDTH; x++) {
+void Epepd::debugPrintBuffer(uint8_t* buffer, uint8_t bitsPerPixel) {
+    for (uint16_t y = 0; y < EPD_HEIGHT; y++) {
+        for (uint16_t x = 0; x < EPD_WIDTH; x++) {
             float value = getBufferPixel(buffer, bitsPerPixel, x, y);
 //            Serial.printf("pixel %d %d is %d\n", x, y, getBufferPixel(buffer, bitsPerPixel, x, y));
             float maxValue = float(int(1 << bitsPerPixel));
@@ -388,5 +409,13 @@ void epepd::debugPrintBuffer(uint8_t* buffer, uint8_t bitsPerPixel) {
         }
         Serial.printf("\n");
     }
+}
+
+void Epepd::setRotation(uint8_t r) {
+    rotation = r;
+}
+
+uint8_t Epepd::getRotation(void) const {
+    return rotation;
 }
 

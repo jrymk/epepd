@@ -1,4 +1,4 @@
-# epepd
+# Epepd
 
 An **eP**aper **d**isplay library with **e**ndless **p**ossibilities\
 _currently only supports Waveshare 3.7" ePaper HAT_
@@ -13,6 +13,54 @@ Rough edges? With `bufferToLUT` custom transition function, you can send pixel d
 
 If you have plenty of RAM to spare, you can increase the `Adafruit_GFX` frame buffer resolution, and then use the `bufferToLUT` function to output an
 appropriate level of grey for smooth fonts too (as GFXFonts don't do anti-aliased fonts, what about just supersample it?)
+
+![supersampling](doc/supersampling.jpg | width=400)
+
+And all you need to do is...
+
+```cpp
+EpBitmap gfxBuffer(960, 560, 1); // set the Adafruit_GFX buffer oversized
+Epepd epd(gfxBuffer, EPAPER_CS, EPAPER_DC, EPAPER_RST, EPAPER_BUSY);
+
+void setup() {
+    epd.init();
+    gfxBuffer.allocate(4096); // allocate the buffer in 4KB chunks so that it will fit in memory
+    
+    // start drawing
+    epd.setFont(&Aero_Matics_Bold44pt7b);
+    epd.fillScreen(WHITE);
+    epd.setTextColor(BLACK);
+    epd.setCursor(10, 300);
+    epd.print("Connecting to\nWiFi...");
+    
+    // display
+    epd.display();
+}
+```
+
+and for the display function override... _(the actual "plugin" style classes has not been implemented yet)_
+
+```cpp
+void Epepd::display() {
+    initDisplay();
+    
+    writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
+        int blackPixels = 0;
+        if (epepd.gfxBuffer->getPixel(x * 2, y * 2)) blackPixels++;
+        if (epepd.gfxBuffer->getPixel(x * 2 + 1, y * 2)) blackPixels++;
+        if (epepd.gfxBuffer->getPixel(x * 2, y * 2 + 1)) blackPixels++;
+        if (epepd.gfxBuffer->getPixel(x * 2 + 1, y * 2 + 1)) blackPixels++;
+        const uint8_t def[] = {LUT0, LUT1, LUT1, LUT2, LUT3};
+        return def[blackPixels];
+    });
+    // what LUT0-3 does depend on the LUT, which will be customizable too
+    // in this case it is just a normal 4-shades-of-grey LUT
+    
+    updateDisplay();
+}
+```
+
+and that's it. That's pretty intuitive if I say so myself.
 
 #### Mixed display modes
 
