@@ -14,7 +14,7 @@ Rough edges? With `bufferToLUT` custom transition function, you can send pixel d
 If you have plenty of RAM to spare, you can increase the `Adafruit_GFX` frame buffer resolution, and then use the `bufferToLUT` function to output an
 appropriate level of grey for smooth fonts too (as GFXFonts don't do anti-aliased fonts, what about just supersample it?)
 
-![supersampling](doc/supersampling.jpg | width=400)
+<img src="doc/supersampling.jpg" width="400">
 
 And all you need to do is...
 
