@@ -145,9 +145,10 @@ To achieve the flexibility I want, I'd like multiple frame buffers to act like m
 ### Shapes mode
 
 If you think about masks, they are usually just rectangles, maybe sometimes circles. Why not use those primitives as masks? If so, we can save tons of memory.
-How about more complex shapes? What if in some occasion I want to use some logo as a mask? Therefore, I decided to combine shape masks and bitmaps, so
+How about more complex shapes? What if in some occasion I want to use some logo as a partialUpdateMask? Therefore, I decided to combine shape masks and bitmaps,
+so
 the `EpFunction`s don't have to care about the type. The `EpBitmap` will handle both bitmaps and vector-ish shapes-based images.\
-One rectangle or circle probably won't be enough for a mask, so it is now a list of shapes that will do
+One rectangle or circle probably won't be enough for a partialUpdateMask, so it is now a list of shapes that will do
 `ADD`, `SUBTRACT`, `INTERSECT`, `INTERSECT_USE_BEHIND` and `EXCLUDE` for you to build your complex shapes.
 
 There are also multiple ways of combining the bitmap layer and the shapes layer.\
@@ -208,7 +209,7 @@ EpBitmap redRam(EPD_WIDTH, EPD_HEIGHT, 1); // LUT bit 1, previous (for partial)
 EpBitmap bwRam(EPD_WIDTH, EPD_HEIGHT, 1);  // LUT bit 0, current (for partial)
 ```
 
-Basically it's really convenient and flexible, if not a bit slow... _(currently pixelToLUT() takes a whopping 100+ms to run)_\
+Basically it's really convenient and flexible, if not a bit slow... _(currently getPixelLUT() takes a whopping 100+ms to run)_\
 Maybe you can suggest how do I make it faster? It's just bit-packed arrays...
 
 ## Display support

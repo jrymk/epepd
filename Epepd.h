@@ -1,5 +1,5 @@
-#ifndef HYBRIDEPD_H
-#define HYBRIDEPD_H
+#ifndef EPEPD_H
+#define EPEPD_H
 
 #define BLACK 0x0000
 #define DARKGREY 0x7BEF
@@ -9,14 +9,17 @@
 #define LUT0 0
 #define LUT1 1
 #define LUT2 2
-#define LUT3 3 // uSefUl! I know!
+#define LUT3 3
+#define LUT00 0
+#define LUT01 1
+#define LUT10 2
+#define LUT11 3 // uSefUl! I know!
 
 #include <Adafruit_GFX.h>
 #include <SPI.h>
 #include <functional>
 #include "EpBitmap.h"
 #include "EpFunction.h"
-#include "EpFunctions/EpBuiltInFunctions.h"
 
 class Epepd : public Adafruit_GFX {
 public:
@@ -24,9 +27,17 @@ public:
 
     void init();
 
+    EpBitmap* getGfxBuffer();
+
+    EpBitmap* getRedRam();
+
+    EpBitmap* getBwRam();
+
     void drawPixel(int16_t x, int16_t y, uint16_t color) override;
 
     void display();
+
+    void initDisplay();
 
     void hwReset();
 
@@ -43,7 +54,7 @@ public:
     // getPixelLut: given x and y, derive the LUT from the two buffers (red(old, 0x26): bit 1, b/w(new, 0x24): bit 0)
     //              will have access to gfxBuffer, redRam and bwRam. Note that redRam and bwRam will be changed after calling, so only use it if doing single pixel operations
     //              depending on the rotation, this function will get values x from 0 to width OR from 0 and height, and y the other way around
-    void writeToDisplay(std::function<uint8_t(Epepd &epepd, int16_t x, int16_t y)> getPixelLut);
+    void writeToDisplay(EpFunction &epFn);
 
     void updateDisplay();
 
@@ -77,7 +88,6 @@ private:
     SPISettings spiSettings;
     bool isWritingData = false;
 
-    void initDisplay();
 
     struct TransitionResult {
         uint8_t newDisplayBuffer;

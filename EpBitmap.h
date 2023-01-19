@@ -57,12 +57,13 @@ public:
     };
 
     void setAdafruitGFXTargetMode(AdafruitGfxTargetMode mode);
-
+    
     /// BITMAP MODE ///
     // by default EpBitmap uses bitmap blendMode. it takes up more memory space but allows for much better detail
 
     // allocate the bitmap memory, split into blocks, blockSize in bytes (you are not going to allocate multiple blocks over 64K on the esp32, so that's the biggest you can do)
-    bool allocate(uint16_t blockSize);
+    // blockSize must be a power of 2 (4200 will become 4096). I have to do this to get rid of the divides and mods
+    bool allocate(uint32_t blockSize);
 
     bool isAllocated() const;
 
@@ -75,11 +76,6 @@ public:
     void setPixel(int16_t x, int16_t y, uint8_t color);
 
     void setBitmapPixel(int16_t x, int16_t y, uint8_t color);
-
-    void streamBytesReset();
-
-    // keep count of bytes read yourself, it will certainly crash if you go over!
-    uint8_t streamBytesNext();
 
     /// SHAPES MODE ///
     // TODO: override fillCircle and fillRect functions and maybe roundedRect for a "more familiar" feel
@@ -102,6 +98,14 @@ public:
 
     uint8_t getTransparencyColor();
 
+    /// for pros (for redRam and bwRam) ///
+    void _streamBytesBegin();
+
+    // keep count of bytes read yourself, it will certainly crash if you go over!
+    uint8_t _streamOutBytesNext();
+
+    void _streamInBytesNext(uint8_t byte);
+
 private:
     int16_t WIDTH, HEIGHT;
     uint8_t BPP;
@@ -114,6 +118,7 @@ private:
     bool allocated = false;
     uint8_t** blocks;
     uint16_t blockSize; // in bytes
+    uint16_t blockSizeExp; // 1 << blockSizeExp = blockSize
     /// TODO: vector blendMode
 
     uint16_t streamBytesCurrentBlock;

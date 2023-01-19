@@ -6,25 +6,45 @@
 
 const unsigned char Epepd::lut_4G[] PROGMEM =
         {
+//                 partial:
 //                ph0    1     2     3     4     5     6     7     8     9
-                0x20, 0x48, 0x48, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut11
-                0x02, 0x48, 0x48, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut10
-                0x08, 0x48, 0x48, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut01
-                0x40, 0x48, 0x48, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut00
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut00
+                0x01, 0x2A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut01
+                0x0A, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut10
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut11
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs vcom
                 //00    01    10    11    rp
-                0x02, 0x03, 0x01, 0x02, 0x00, // ph0
-                0x09, 0x02, 0x09, 0x02, 0x00, // ph2
-//                0x00, 0x00, 0x00, 0x00, 0x00, // ph2
-                0x02, 0x01, 0x02, 0x01, 0x02, // ph1
-                0x0A, 0x01, 0x03, 0x19, 0x00, // ph3
-                0x01, 0x00, 0x00, 0x00, 0x00, // ph4
+                0x00, 0x00, 0x01, 0x00, 0x00, // ph0
+                0x00, 0x03, 0x03, 0x00, 0x00, // ph1
+                0x00, 0x00, 0x00, 0x00, 0x00, // ph2
+                0x00, 0x00, 0x00, 0x00, 0x00, // ph3
+                0x00, 0x00, 0x00, 0x00, 0x00, // ph4
                 0x00, 0x00, 0x00, 0x00, 0x00, // ph5
                 0x00, 0x00, 0x00, 0x00, 0x00, // ph6
                 0x00, 0x00, 0x00, 0x00, 0x00, // ph7
                 0x00, 0x00, 0x00, 0x00, 0x00, // ph8
                 0x00, 0x00, 0x00, 0x00, 0x00, // ph9
                 0x22, 0x22, 0x22, 0x22, 0x22
+
+////                ph0    1     2     3     4     5     6     7     8     9
+//                0x20, 0x48, 0x48, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut11
+//                0x02, 0x48, 0x48, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut10
+//                0x08, 0x48, 0x48, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut01
+//                0x40, 0x48, 0x48, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut00
+//                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs vcom
+//                //00    01    10    11    rp
+//                0x02, 0x03, 0x01, 0x02, 0x00, // ph0
+//                0x09, 0x02, 0x09, 0x02, 0x00, // ph2
+////                0x00, 0x00, 0x00, 0x00, 0x00, // ph2
+//                0x02, 0x01, 0x02, 0x01, 0x02, // ph1
+//                0x0A, 0x01, 0x03, 0x19, 0x00, // ph3
+//                0x01, 0x00, 0x00, 0x00, 0x00, // ph4
+//                0x00, 0x00, 0x00, 0x00, 0x00, // ph5
+//                0x00, 0x00, 0x00, 0x00, 0x00, // ph6
+//                0x00, 0x00, 0x00, 0x00, 0x00, // ph7
+//                0x00, 0x00, 0x00, 0x00, 0x00, // ph8
+//                0x00, 0x00, 0x00, 0x00, 0x00, // ph9
+//                0x22, 0x22, 0x22, 0x22, 0x22
 
 //
 //                0x14, 0x06, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,//4
@@ -39,6 +59,7 @@ const unsigned char Epepd::lut_4G[] PROGMEM =
 //                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,//10
 //                0x22, 0x22, 0x22, 0x22, 0x22
         };
+
 
 Epepd::Epepd(EpBitmap &gfxBuffer, int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin) :
         Adafruit_GFX(gfxBuffer.width(), gfxBuffer.height()),
@@ -61,9 +82,21 @@ void Epepd::init() {
     hwReset();
     pinMode(busyPin, INPUT);
     spi->begin();
-    redRam.allocate(4200); // fits in 4 blocks
-    bwRam.allocate(4200);
+    redRam.allocate(4096);
+    bwRam.allocate(4096);
     Serial.printf("Display resolution: %d*%d\nAdafruit_GFX resolution: %d*%d\n", EPD_WIDTH, EPD_HEIGHT, Adafruit_GFX::width(), Adafruit_GFX::height());
+}
+
+EpBitmap* Epepd::getGfxBuffer() {
+    return gfxBuffer;
+}
+
+EpBitmap* Epepd::getRedRam() {
+    return &redRam;
+}
+
+EpBitmap* Epepd::getBwRam() {
+    return &bwRam;
 }
 
 void Epepd::displayTest() {
@@ -152,7 +185,7 @@ void Epepd::initDisplay() {
     writeData(0xff);
     writeData(0xff);
     writeData(0xff);
-    writeData(0x4f); // enable ping pong for blendMode 2
+    writeData(0x0f); // enable ping pong for display mode 2 (4F = on ; 0F = off)
     writeData(0xff);
     writeData(0xff);
     writeData(0xff);
@@ -185,30 +218,14 @@ void Epepd::display() {
 
     Serial.printf("gfxBuffer has %d shapes\n", gfxBuffer->shapes.size());
 
-    writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
-//        int blackPixels = 0;
-//        for (int dx = -1; dx <= 1; dx++)
-//            for (int dy = -1; dy <= 1; dy++)
-//                if (epepd.gfxBuffer->getPixel(x + dx, y + dy)) blackPixels++;
-//        const uint8_t defBlack[] = {LUT0, LUT0, LUT1, LUT1, LUT2, LUT2, LUT2, LUT2, LUT3, LUT3};
-//        const uint8_t defWhite[] = {LUT0, LUT0, LUT0, LUT0, LUT0, LUT1, LUT1, LUT1, LUT2, LUT3};
-//        return (epepd.gfxBuffer->getPixel(x, y) ? defBlack[blackPixels] : defWhite[blackPixels]);
-        return (epepd.gfxBuffer->getPixel(x, y) >> 6) & 0b11;
-
-//        int blackPixels = 0;
-//        for (int dx = 0; dx <= 1; dx++)
-//            for (int dy = 0; dy <= 1; dy++)
-//                if (epepd.gfxBuffer->getPixel(x * 2 + dx, y * 2 + dy)) blackPixels++;
-//        const uint8_t def[] = {LUT0, LUT1, LUT1, LUT2, LUT3};
-//        return def[blackPixels];
-    });
+//    writeToDisplay();
 
     updateDisplay();
 }
 
 void Epepd::updateDisplay() {
     writeCommand(0x22);
-    writeData(0xCF); // display blendMode 2 with ping pong
+    writeData(0xCF); // display blendMode 2
 
     writeCommand(0x20); // activate
     waitUntilIdle();
@@ -226,46 +243,74 @@ uint16_t Epepd::getLuminance(uint16_t color) {
 #endif
 }
 
-void Epepd::writeToDisplay(std::function<uint8_t(Epepd &epepd, int16_t x, int16_t y)> getPixelLut) {
+void Epepd::writeToDisplay(EpFunction &epFn) {
     // rotation is handled here
     // (the gfxBuffer is a graphics buffer, not a display buffer anymore, you draw right-side-up stuff on the buffer, and you decide which way to map to the display)
 
     // try to not switch in the loop, with the cost of program size probably
     uint64_t start = esp_timer_get_time();
+    uint8_t redByte = 0;
+    uint8_t bwByte = 0;
+    redRam._streamBytesBegin();
+    bwRam._streamBytesBegin();
     switch (getRotation()) {
         case 1:
             for (int16_t y = 0; y < EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < EPD_WIDTH; x++) {
-                    uint8_t lut = getPixelLut(*this, EPD_HEIGHT - y - 1, x);
-                    redRam.setPixel(x, y, lut << 6);
-                    bwRam.setPixel(x, y, lut << 7);
+                    uint8_t lut = epFn.getPixelLut(EPD_HEIGHT - y - 1, x);
+                    redByte |= ((lut & 0b10) ? 1 : 0) << (7 - x & 0b111);
+                    bwByte |= ((lut & 0b01) ? 1 : 0) << (7 - x & 0b111);
+                    if ((x & 0b111) == 0b111) {
+                        redRam._streamInBytesNext(redByte);
+                        bwRam._streamInBytesNext(bwByte);
+                        redByte = 0;
+                        bwByte = 0;
+                    }
                 }
             }
             break;
         case 2:
             for (int16_t y = 0; y < EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < EPD_WIDTH; x++) {
-                    uint8_t lut = getPixelLut(*this, EPD_WIDTH - x - 1, EPD_HEIGHT - y - 1);
-                    redRam.setPixel(x, y, lut << 6);
-                    bwRam.setPixel(x, y, lut << 7);
+                    uint8_t lut = epFn.getPixelLut(EPD_WIDTH - x - 1, EPD_HEIGHT - y - 1);
+                    redByte |= ((lut & 0b10) ? 1 : 0) << (7 - x & 0b111);
+                    bwByte |= ((lut & 0b01) ? 1 : 0) << (7 - x & 0b111);
+                    if ((x & 0b111) == 0b111) {
+                        redRam._streamInBytesNext(redByte);
+                        bwRam._streamInBytesNext(bwByte);
+                        redByte = 0;
+                        bwByte = 0;
+                    }
                 }
             }
             break;
         case 3:
             for (int16_t y = 0; y < EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < EPD_WIDTH; x++) {
-                    uint8_t lut = getPixelLut(*this, y, EPD_WIDTH - x - 1);
-                    redRam.setPixel(x, y, lut << 6);
-                    bwRam.setPixel(x, y, lut << 7);
+                    uint8_t lut = epFn.getPixelLut(y, EPD_WIDTH - x - 1);
+                    redByte |= ((lut & 0b10) ? 1 : 0) << (7 - x & 0b111);
+                    bwByte |= ((lut & 0b01) ? 1 : 0) << (7 - x & 0b111);
+                    if ((x & 0b111) == 0b111) {
+                        redRam._streamInBytesNext(redByte);
+                        bwRam._streamInBytesNext(bwByte);
+                        redByte = 0;
+                        bwByte = 0;
+                    }
                 }
             }
             break;
         default: // no rotation
             for (int16_t y = 0; y < EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < EPD_WIDTH; x++) {
-                    uint8_t lut = getPixelLut(*this, x, y);
-                    redRam.setPixel(x, y, lut << 6);
-                    bwRam.setPixel(x, y, lut << 7);
+                    uint8_t lut = epFn.getPixelLut(x, y);
+                    redByte |= ((lut & 0b10) ? 1 : 0) << (7 - x & 0b111);
+                    bwByte |= ((lut & 0b01) ? 1 : 0) << (7 - x & 0b111);
+                    if ((x & 0b111) == 0b111) {
+                        redRam._streamInBytesNext(redByte);
+                        bwRam._streamInBytesNext(bwByte);
+                        redByte = 0;
+                        bwByte = 0;
+                    }
                 }
             }
     }
@@ -275,16 +320,16 @@ void Epepd::writeToDisplay(std::function<uint8_t(Epepd &epepd, int16_t x, int16_
     uint32_t size = uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 8;
     writeCommand(0x26);
     writeDataBegin();
-    redRam.streamBytesReset();
+    redRam._streamBytesBegin();
     for (uint32_t b = 0; b < size; b++)
-        writeDataCont(redRam.streamBytesNext());
+        writeDataCont(redRam._streamOutBytesNext());
     writeDataEnd();
 
     writeCommand(0x24);
     writeDataBegin();
-    bwRam.streamBytesReset();
+    bwRam._streamBytesBegin();
     for (uint32_t b = 0; b < size; b++)
-        writeDataCont(bwRam.streamBytesNext());
+        writeDataCont(bwRam._streamOutBytesNext());
     writeDataEnd();
 
     Serial.printf("Sending two sets of display buffer took %lldus\n", esp_timer_get_time() - start);
@@ -433,4 +478,5 @@ void Epepd::setRotation(uint8_t r) {
 uint8_t Epepd::getRotation(void) const {
     return rotation;
 }
+
 
