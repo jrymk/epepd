@@ -10,9 +10,9 @@
 #include <SPI.h>
 #include <functional>
 
-class HybridEPD37 : public Adafruit_GFX {
+class epepd : public Adafruit_GFX {
 public:
-    HybridEPD37(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin);
+    epepd(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin);
 
     void init();
 
@@ -63,7 +63,7 @@ private:
     static uint8_t getBufferPixel(uint8_t* buffer, uint8_t bitsPerPixel, uint16_t x, uint16_t y);
 
     // bufferToLUT: given x and y, derive the LUT from the two buffers (red(old, 0x26): bit 1, b/w(new, 0x24): bit 0)
-    void writeBufferToMemory(std::function<uint8_t(HybridEPD37 &buff, int16_t x, int16_t y)> bufferToLUT);
+    void writeBufferToMemory(std::function<uint8_t(epepd &buff, int16_t x, int16_t y)> bufferToLUT);
 
     void setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 

@@ -1,9 +1,9 @@
-#include "HybridEPD37.h"
+#include "epepd.h"
 
 #define BUSY_TIMEOUT 5000000
 #define RESET_DURATION 10
 
-const unsigned char HybridEPD37::lut_4G[] PROGMEM =
+const unsigned char epepd::lut_4G[] PROGMEM =
         {
 //                ph0    1     2     3     4     5     6     7     8     9
                 0x40, 0x48, 0x48, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // vs lut00
@@ -39,7 +39,7 @@ const unsigned char HybridEPD37::lut_4G[] PROGMEM =
 //                0x22, 0x22, 0x22, 0x22, 0x22
         };
 
-HybridEPD37::HybridEPD37(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin) :
+epepd::epepd(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin) :
         Adafruit_GFX(WIDTH, HEIGHT),
         spi(&SPI),
         spiSettings(40000000, MSBFIRST, SPI_MODE0) {
@@ -47,9 +47,11 @@ HybridEPD37::HybridEPD37(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t b
     this->dcPin = dcPin;
     this->rstPin = rstPin;
     this->busyPin = busyPin;
+
+    heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
 }
 
-void HybridEPD37::init() {
+void epepd::init() {
     pinMode(csPin, OUTPUT);
     digitalWrite(csPin, HIGH);
     pinMode(dcPin, OUTPUT);
@@ -59,7 +61,7 @@ void HybridEPD37::init() {
     spi->begin();
 }
 
-void HybridEPD37::displayTest() {
+void epepd::displayTest() {
     delay(100);
     initDisplay();
     writeCommand(0x24);
@@ -93,7 +95,7 @@ void HybridEPD37::displayTest() {
     waitUntilIdle();
 }
 
-void HybridEPD37::initDisplay() {
+void epepd::initDisplay() {
     if (isHibernating)
         hwReset();
     delay(10);
@@ -168,7 +170,7 @@ void HybridEPD37::initDisplay() {
     powerOn();
 }
 
-void HybridEPD37::drawPixel(int16_t x, int16_t y, uint16_t color) {
+void epepd::drawPixel(int16_t x, int16_t y, uint16_t color) {
     if (x < 0 || x >= width() || y < 0 || y >= height())
         return;
     switch (getRotation()) {
@@ -192,12 +194,12 @@ void HybridEPD37::drawPixel(int16_t x, int16_t y, uint16_t color) {
 }
 
 
-void HybridEPD37::display() {
+void epepd::display() {
     initDisplay();
 //    debugPrintBuffer(buffer, 4);
-    writeBufferToMemory([](HybridEPD37 &buff, int16_t x, int16_t y) {
-//        Serial.printf("calc lut %d, %d is %d\n", x, y, (HybridEPD37::getBufferPixel(buff.buffer, 4, x, y)) ? 0b11 : 0b00);
-//        return (HybridEPD37::getBufferPixel(buff.buffer, x, y)) ? 0b11 : 0b00;
+    writeBufferToMemory([](epepd &buff, int16_t x, int16_t y) {
+//        Serial.printf("calc lut %d, %d is %d\n", x, y, (epepd::getBufferPixel(buff.buffer, 4, x, y)) ? 0b11 : 0b00);
+//        return (epepd::getBufferPixel(buff.buffer, x, y)) ? 0b11 : 0b00;
         return (((x & 0b1000) + (y & 0b1000)) & 0b1000 ? 0b01 : 0b10);
     });
 
@@ -208,7 +210,7 @@ void HybridEPD37::display() {
     waitUntilIdle();
 }
 
-uint16_t HybridEPD37::getLuminance(uint16_t color) {
+uint16_t epepd::getLuminance(uint16_t color) {
 #ifdef USE_PERCEIVED_LUMINANCE
     float r = float(color & 0b1111100000000000);
     float g = float(color & 0b0000011111100000 << 5);
@@ -219,7 +221,7 @@ uint16_t HybridEPD37::getLuminance(uint16_t color) {
 #endif
 }
 
-void HybridEPD37::writeBufferToMemory(std::function<uint8_t(HybridEPD37 &buff, int16_t x, int16_t y)> bufferToLUT) {
+void epepd::writeBufferToMemory(std::function<uint8_t(epepd &buff, int16_t x, int16_t y)> bufferToLUT) {
     uint64_t start = esp_timer_get_time();
     writeCommand(0x26);
     writeDataBegin();
@@ -252,15 +254,15 @@ void HybridEPD37::writeBufferToMemory(std::function<uint8_t(HybridEPD37 &buff, i
     Serial.printf("Sending two sets of display buffer took %lldus\n", esp_timer_get_time() - start);
 }
 
-uint8_t HybridEPD37::getBufferPixel(uint8_t* buffer, uint16_t x, uint16_t y) {
+uint8_t epepd::getBufferPixel(uint8_t* buffer, uint16_t x, uint16_t y) {
     return buffer[uint32_t(y) * WIDTH + x];
 };
 
-uint8_t HybridEPD37::getBufferPixel(uint8_t* buffer, uint8_t bitsPerPixel, uint16_t x, uint16_t y) {
+uint8_t epepd::getBufferPixel(uint8_t* buffer, uint8_t bitsPerPixel, uint16_t x, uint16_t y) {
     return (buffer[(uint32_t(y) * WIDTH + uint32_t(x)) * bitsPerPixel / 8] >> (bitsPerPixel - (uint32_t(y) * WIDTH + x) * bitsPerPixel % 8)) & ((1 << bitsPerPixel) - 1);
 }
 
-void HybridEPD37::writeCommand(uint8_t c) {
+void epepd::writeCommand(uint8_t c) {
     spi->beginTransaction(spiSettings);
     digitalWrite(dcPin, LOW);
     digitalWrite(csPin, LOW);
@@ -270,7 +272,7 @@ void HybridEPD37::writeCommand(uint8_t c) {
     spi->endTransaction();
 }
 
-void HybridEPD37::writeDataBegin() {
+void epepd::writeDataBegin() {
     if (isWritingData)
         Serial.printf("ERROR: already writing data, did you forgot to end?\n");
     spi->beginTransaction(spiSettings);
@@ -278,23 +280,23 @@ void HybridEPD37::writeDataBegin() {
     isWritingData = true;
 }
 
-void HybridEPD37::writeData(uint8_t d) {
+void epepd::writeData(uint8_t d) {
     writeDataBegin();
     writeDataCont(d);
     writeDataEnd();
 }
 
-void HybridEPD37::writeDataCont(uint8_t d) {
+void epepd::writeDataCont(uint8_t d) {
     spi->transfer(d);
 }
 
-void HybridEPD37::writeDataEnd() {
+void epepd::writeDataEnd() {
     digitalWrite(csPin, HIGH);
     spi->endTransaction();
     isWritingData = false;
 }
 
-void HybridEPD37::waitUntilIdle() {
+void epepd::waitUntilIdle() {
     uint64_t start = esp_timer_get_time();
     while (true) {
         delay(1);
@@ -310,7 +312,7 @@ void HybridEPD37::waitUntilIdle() {
     Serial.printf("Wait took %lldus\n", esp_timer_get_time() - start);
 }
 
-void HybridEPD37::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+void epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     writeCommand(0x11); // data entry mode setting
     writeData(0x03); // x increment, y increment, updated on x direction
 
@@ -335,7 +337,7 @@ void HybridEPD37::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     writeData(y >> 8);
 }
 
-void HybridEPD37::hwReset() {
+void epepd::hwReset() {
     pinMode(rstPin, OUTPUT);
     digitalWrite(rstPin, HIGH);
     delay(RESET_DURATION);
@@ -346,14 +348,14 @@ void HybridEPD37::hwReset() {
     isHibernating = false;
 }
 
-void HybridEPD37::hibernate() {
+void epepd::hibernate() {
     powerOff();
     writeCommand(0x10); // deep sleep mode
     writeData(0x03); // enter deep sleep
     isHibernating = true;
 }
 
-void HybridEPD37::powerOn() {
+void epepd::powerOn() {
     if (!isPoweredOn) {
         writeCommand(0x22);
         writeData(0xc0); // enable clock signal -> enable analog
@@ -364,7 +366,7 @@ void HybridEPD37::powerOn() {
     isPoweredOn = true;
 }
 
-void HybridEPD37::powerOff() {
+void epepd::powerOff() {
     if (isPoweredOn) {
         writeCommand(0x22);
         writeData(0x03); // disable analog -> disable clock signal
@@ -375,7 +377,7 @@ void HybridEPD37::powerOff() {
     isPoweredOn = false;
 }
 
-void HybridEPD37::debugPrintBuffer(uint8_t* buffer, uint8_t bitsPerPixel) {
+void epepd::debugPrintBuffer(uint8_t* buffer, uint8_t bitsPerPixel) {
     for (uint16_t y = 0; y < HEIGHT; y++) {
         for (uint16_t x = 0; x < WIDTH; x++) {
             float value = getBufferPixel(buffer, bitsPerPixel, x, y);
