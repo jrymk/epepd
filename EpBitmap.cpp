@@ -1,9 +1,11 @@
 #include "EpBitmap.h"
 
-EpBitmap::EpBitmap(int16_t w, int16_t h, uint8_t bitsPerPixel) {
-    if (bitsPerPixel > 8) {
+#define SHOW_HEAP_INFO
+
+EpBitmap::EpBitmap(int16_t w, int16_t h, uint8_t bitsPerPixel) :
+        Adafruit_GFX(w, h) {
+    if (bitsPerPixel > 8)
         Serial.printf("You can not create a bitmap with bpp over 8 yet\n");
-    }
     WIDTH = w;
     HEIGHT = h;
     BPP = bitsPerPixel;
@@ -26,13 +28,12 @@ bool EpBitmap::allocate(uint32_t bs) {
     uint32_t requiredBytes = uint32_t(WIDTH) * uint32_t(HEIGHT) * BPP / 8;
     uint16_t fullBlocksCnt = requiredBytes / blockSize;
     uint16_t remainderBlockSize = requiredBytes - uint32_t(fullBlocksCnt) * blockSize;
-
     blocks = (uint8_t**) (heap_caps_malloc((fullBlocksCnt + (remainderBlockSize ? 1 : 0)) * sizeof(uint8_t*), MALLOC_CAP_32BIT));
-    printf("head at %p\n", blocks);
     if (blocks == nullptr) {
         Serial.printf("Failed to allocate memory!\n");
         return false;
     }
+    Serial.printf("head at %p\n", blocks);
 
     // allocate full blocks
     for (uint16_t b = 0; b < fullBlocksCnt; b++) {
@@ -44,7 +45,7 @@ bool EpBitmap::allocate(uint32_t bs) {
             heap_caps_free(blocks);
             return false;
         }
-        printf("block %d at %p\n", b, blocks[b]);
+        Serial.printf("block %d at %p\n", b, blocks[b]);
     }
     // allocate remainder block
     if (remainderBlockSize) {
@@ -56,7 +57,7 @@ bool EpBitmap::allocate(uint32_t bs) {
             heap_caps_free(blocks);
             return false;
         }
-        printf("block %d at %p\n", fullBlocksCnt, blocks[fullBlocksCnt]);
+        Serial.printf("block %d at %p\n", fullBlocksCnt, blocks[fullBlocksCnt]);
     }
 
 #ifdef SHOW_HEAP_INFO
@@ -87,26 +88,27 @@ void EpBitmap::deallocate() {
 }
 
 uint8_t EpBitmap::getPixel(int16_t x, int16_t y) { // I hope I were better at optimization... this will get called a lot
-    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((x >> 3) & 1) != ((y >> 3) & 1)) ? 0b10000000 : 0b01000000) : this->transparencyColor;
+//    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((x >> 3) & 1) != ((y >> 3) & 1)) ? 0b10000000 : 0b01000000) : this->transparencyColor;
+    // rotated 45 degs and offset by some amount for better clarity
+//    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((((x + 7) - y) >> 2) + (((x + 7) - y) >> 4) & 1) != (((x + (y + 3)) >> 2) + ((x + (y + 3)) >> 4) & 1))
+//                                                                         ? 0b10000000 : 0b01000000)
+//                                                                      : this->transparencyColor;
+    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? (
+            (
+                    ((x & 0b11) == 0) && ((y & 0b11) == 1) ||
+                    ((x & 0b11) == 1) && ((y & 0b11) == 0) ||
+                    ((x & 0b11) == 2) && ((y & 0b11) == 2) ||
+                    ((x & 0b11) == 3) && ((y & 0b11) == 3)
+            )
+            ? 0b01000000 : 0b10000000) : this->transparencyColor;
+
     uint16_t shapesColor;
     uint8_t bitmapColor;
     if (blendMode != BITMAP_ONLY)
         shapesColor = getShapePixel(x, y);
-    if (blendMode != SHAPES_ONLY) { /// TODO: force block size power of 2 to get rid of div and mod
-        if (!allocated) {
-            Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
-            return transparencyColor;
-        }
-        if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT)
-            return transparencyColor;
-        int32_t bitIdx = (int32_t(y) * WIDTH + x + 1) * BPP - 1; // of the last bit of the pixel
-        uint16_t joined = (blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)];
-        if ((bitIdx >> 3) >= blockSize) // not the first byte
-            joined |= ((blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)]) << 8;
-        joined >>= 7 - (bitIdx & 0b111);
-        joined &= (1 << BPP) - 1; // partialUpdateMask
-        bitmapColor = (joined << (8 - BPP));
-    }
+    if (blendMode != SHAPES_ONLY)
+        bitmapColor = getBitmapPixel(x, y);
+    uint8_t color = transparencyColor;
     switch (blendMode) {
         case BITMAP_ONLY:
             return bitmapColor;
@@ -152,6 +154,22 @@ void EpBitmap::setPixel(int16_t x, int16_t y, uint8_t color) {
     }
 }
 
+uint8_t EpBitmap::getBitmapPixel(int16_t x, int16_t y) {
+    if (!allocated) {
+        Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
+        return transparencyColor;
+    }
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT)
+        return transparencyColor;
+    int32_t bitIdx = (int32_t(y) * WIDTH + x + 1) * BPP - 1; // of the last bit of the pixel
+    uint16_t joined = (blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)];
+    if ((bitIdx >> 3) >= BPP) // not the first byte
+        joined |= ((blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)]) << 8;
+    joined >>= 7 - (bitIdx & 0b111);
+    joined &= (1 << BPP) - 1; // mask
+    return (joined << (8 - BPP)) | (_nextBitmap ? (_nextBitmap->getBitmapPixel(x, y) >> BPP) : 0);
+}
+
 void EpBitmap::setBitmapPixel(int16_t x, int16_t y, uint8_t color) {
     if (!allocated) {
         Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
@@ -168,14 +186,8 @@ void EpBitmap::setBitmapPixel(int16_t x, int16_t y, uint8_t color) {
         (blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] &= ~(mask >> 8); // reset
         (blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] |= color >> ((bitIdx & 0b111) + 1);
     }
-}
-
-int16_t EpBitmap::width() const {
-    return WIDTH;
-}
-
-int16_t EpBitmap::height() const {
-    return HEIGHT;
+    if (_nextBitmap)
+        _nextBitmap->setBitmapPixel(x, y, color << BPP);
 }
 
 bool EpBitmap::isAllocated() const {
@@ -268,26 +280,52 @@ void EpBitmap::setTransparencyPattern() {
     transparencyColor |= (1 << 15);
 }
 
-void EpBitmap::_streamBytesBegin() {
-    streamBytesCurrentBlock = 0;
-    streamBytesCurrentByte = 0;
+void EpBitmap::_streamBytesInBegin() {
+    streamBytesInCurrentBlock = 0;
+    streamBytesInCurrentByte = 0;
+}
+
+void EpBitmap::_streamBytesOutBegin() {
+    streamBytesOutCurrentBlock = 0;
+    streamBytesOutCurrentByte = 0;
+}
+
+void EpBitmap::_streamInBytesNext(uint8_t byte) {
+    (blocks[streamBytesInCurrentBlock])[streamBytesInCurrentByte] = byte;
+    streamBytesInCurrentByte++;
+    if (streamBytesInCurrentByte == blockSize) {
+        streamBytesInCurrentBlock++;
+        streamBytesInCurrentByte = 0;
+    }
 }
 
 uint8_t EpBitmap::_streamOutBytesNext() {
-    uint8_t data = (blocks[streamBytesCurrentBlock])[streamBytesCurrentByte];
-    streamBytesCurrentByte++;
-    if (streamBytesCurrentByte == blockSize) {
-        streamBytesCurrentBlock++;
-        streamBytesCurrentByte = 0;
+    uint8_t data = (blocks[streamBytesOutCurrentBlock])[streamBytesOutCurrentByte];
+    streamBytesOutCurrentByte++;
+    if (streamBytesOutCurrentByte == blockSize) {
+        streamBytesOutCurrentBlock++;
+        streamBytesOutCurrentByte = 0;
     }
     return data;
 }
 
-void EpBitmap::_streamInBytesNext(uint8_t byte) {
-    (blocks[streamBytesCurrentBlock])[streamBytesCurrentByte] = byte;
-    streamBytesCurrentByte++;
-    if (streamBytesCurrentByte == blockSize) {
-        streamBytesCurrentBlock++;
-        streamBytesCurrentByte = 0;
-    }
+void EpBitmap::_linkBitmap(EpBitmap* nextBitmap) {
+    _nextBitmap = nextBitmap;
+}
+
+
+uint8_t EpBitmap::getLuminance(uint16_t color) {
+#ifdef EPEPD_USE_PERCEIVED_LUMINANCE
+    float r = float(color & 0b1111100000000000);
+    float g = float(color & 0b0000011111100000 << 5);
+    float b = float(color & 0b0000000000011111 << 11);
+    return std::min(uint16_t((0.299f * r * r + 0.587f * g * g + 0.114f * b * b) * 65536.f), uint16_t(0xFFFF));
+#else
+    /// TODO: wtf how would this work
+    return (color & 0b1111100000000000) + (color & 0b0000011111100000 << 5) + (color & 0b0000000000011111 << 11);
+#endif
+}
+
+void EpBitmap::drawPixel(int16_t x, int16_t y, uint16_t color) {
+    setPixel(x, y, getLuminance(color));
 }
