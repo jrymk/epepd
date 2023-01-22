@@ -14,7 +14,7 @@ public:
     enum DisplayMode {
         GC2_FULL,    // fast, high quality, will flash once (not partial display)
         GC2_PARTIAL, // fast, high quality, will flash once for updated pixels in mask, requires two update cycles
-        DU,          // faster, low quality, good for setting the display to all white
+        DU2,         // faster, low quality, good for setting the display to all white
         A2,          // fastest, low quality, good for motion
     };
 
@@ -29,11 +29,11 @@ public:
     void display(EpBitmap* source, DisplayMode displayMode, EpBitmap* partial = nullptr, EpBitmap* force = nullptr);
 
 private:
-    static const unsigned char lutGC1_FULL[];
-    static const unsigned char lutGC1_PARTIAL_1[];
-    static const unsigned char lutGC1_PARTIAL_2[];
-    static const unsigned char lutGC1_DU1[];
-    static const unsigned char lutGC1_A2[];
+    static const uint8_t lut_GC2[];
+    static const uint8_t lut_GC2_PARTIAL_1[];
+    static const uint8_t lut_GC2_PARTIAL_2[];
+    static const uint8_t lut_DU2[];
+    static const uint8_t lut_A2[];
 };
 
 #endif //EPPARTIALDISPLAY_H

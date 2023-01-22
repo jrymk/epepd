@@ -19,9 +19,12 @@
 #define IS_DARKGREY(c) ((c & 0x40) == 0x40)
 #define IS_BLACK(c) ((c & 0x00) == 0x00)
 
+#define LUT_SIZE 105
+
 #include <SPI.h>
 #include <functional>
 #include "EpBitmap.h"
+#include "EpBitmapFast.h"
 #include "EpFunction.h"
 
 class Epepd {
@@ -38,7 +41,17 @@ public:
     // initialize display settings after hibernation
     void initDisplay();
 
-    void writeLUT(const uint8_t* data, uint16_t size);
+    void writeLUT(const uint8_t* data);
+
+    enum BorderStyle {
+        BORDER_HI_Z,
+        BORDER_LUT0,
+        BORDER_LUT1,
+        BORDER_LUT2,
+        BORDER_LUT3,
+    };
+
+    void setBorder(BorderStyle border);
 
     // EpFunctions may do this themselves for efficiency (for basic ones like partialDisplay, you can stream bytes and do bitwise operation by byte)
     void writeToDisplay();
@@ -67,7 +80,7 @@ public:
     EpBitmap* getBwRam();
 
 private:
-    static const unsigned char lut_4G[];
+    static const unsigned char lut_GC4[];
 
     // about 16.8KB each
     EpBitmap redRam; // LUT bit 1, previous (for partial)

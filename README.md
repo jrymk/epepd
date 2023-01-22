@@ -6,8 +6,11 @@ _currently only supports Waveshare 3.7" ePaper HAT_
 ## What can it do?
 
 ### More shades of grey? How about partial display? Same time?
+
 16 shades of grey is implemented, but the scale doesn't look that linear and uniform, I guess for images and anti-aliasing text, it's totally fine.\
-Greyness is not proportional to the waveform duration, but to show 16 shades of grey in two display cycles, I can't have custom waveforms for each shade, so some compromises has to be made. Of course I can get 64 shades of grey in 3 cycles, then pick 16 to create a better set, or I can display 64 shades and get the same uniformity problem...)
+Greyness is not proportional to the waveform duration, but to show 16 shades of grey in two display cycles, I can't have custom waveforms for each shade, so
+some compromises has to be made. Of course I can get 64 shades of grey in 3 cycles, then pick 16 to create a better set, or I can display 64 shades and get the
+same uniformity problem...)
 
 Partial update with masks is also implemented. Here's a demo:
 
@@ -76,6 +79,28 @@ delay(1000);
 
 You may or may not found out that... it's slow. There is no delay for each `int f` iteration.\
 Well... I'll try to optimize it. Getting pixels from EpBitmaps is way too slow (each call about 1us, but there are 280*480=134,400 pixels...)
+
+Update: Well actually it isn't *that* slow, this is just from processing that many pixels one by one.\
+
+Here are the benchmarks for processing a whole frame:
+
+```
+134400 gfxBuffer.getPixel calls                took  75967us, 0.565260us/call (like reading from a 4bpp image) 
+134400 epepd.getBwRam()->getPixel calls        took  77058us, 0.573385us/call (like reading from a 1bpp image)
+ 16800 epepd.getBwRam()->_streamOutBytes calls took   3197us, 0.190595us/call (like reading old frame data)
+ 16800 epepd.getBwRam()->_streamInBytes calls  took   3200us, 0.190536us/call (like writing display frame data)
+134400 gfxBuffer.drawPixel calls               took  93460us, 0.695394us/call (like Adafruit_GFX fillScreen, unoptimized)
+134400 GFXcanvas1.getPixel calls               took  54493us, 0.405491us/call (to see how Adafruit performs)
+134400 GFXcanvas1.drawPixel calls              took 107950us, 0.803229us/call (to see how Adafruit performs)
+134400 GFXcanvas8.getPixel calls               took  41016us, 0.305216us/call (to see how Adafruit performs)
+134400 GFXcanvas8.drawPixel calls              took  70207us, 0.522381us/call (to see how Adafruit performs)
+```
+
+Considering Adafruit_GFX doesn't split the buffer into chunks (not even one 8 bit full frame buffer will fit in memory, IIRC, and there are no 2 bit options), I
+think I'm actually doing fine. At least I'm now sure that I'm not a whole magnitude slower or something. I thought the ESP32 were faster than this though,
+disappointing...
+
+So the next goal will be to optimize by lowering pixel count, by supporting windowed update.
 
 ### Anti-aliasing
 

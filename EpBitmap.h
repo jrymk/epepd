@@ -6,12 +6,12 @@
 #include <Adafruit_GFX.h>
 
 // color codes for Adafruit_GFX
-#define GFX_BLACK 0x0000
-#define GFX_DARKGREY 0x7BEF
-#define GFX_LIGHTGREY 0xC618
-#define GFX_WHITE 0xFFFF
+#define GFX_BLACK     0b0000000000000000
+#define GFX_DARKGREY  0b0101001010101010
+#define GFX_LIGHTGREY 0b1010110101010101
+#define GFX_WHITE     0b1111111111111111
 
-#define EPEPD_USE_PERCEIVED_LUMINANCE 1
+//#define EPEPD_USE_PERCEIVED_LUMINANCE 1
 
 struct EpShape {
     enum Shape {
@@ -72,24 +72,24 @@ public:
     /// BITMAP MODE ///
     // by default EpBitmap uses bitmap blendMode. it takes up more memory space but allows for much better detail
 
-    // allocate the bitmap memory, split into blocks, blockSize in bytes (you are not going to allocate multiple blocks over 64K on the esp32, so that's the biggest you can do)
+    virtual // allocate the bitmap memory, split into blocks, blockSize in bytes (you are not going to allocate multiple blocks over 64K on the esp32, so that's the biggest you can do)
     // blockSize must be a power of 2 (4200 will become 4096). I have to do this to get rid of the divides and mods
     bool allocate(uint32_t blockSize);
 
-    bool isAllocated() const;
+    virtual bool isAllocated() const;
 
-    void deallocate();
+    virtual void deallocate();
 
 
-    // do we need pixels over 8 bit wide?
+    virtual // do we need pixels over 8 bit wide?
     // get the color of a particular pixel, aligned left
     uint8_t getPixel(int16_t x, int16_t y);
 
-    void setPixel(int16_t x, int16_t y, uint8_t color);
+    virtual void setPixel(int16_t x, int16_t y, uint8_t color);
 
-    uint8_t getBitmapPixel(int16_t x, int16_t y);
+    virtual uint8_t getBitmapPixel(uint32_t x, uint32_t y);
 
-    void setBitmapPixel(int16_t x, int16_t y, uint8_t color);
+    virtual void setBitmapPixel(uint32_t x, uint32_t y, uint8_t color);
 
     /// SHAPES MODE ///
     // TODO: override fillCircle and fillRect functions and maybe roundedRect for a "more familiar" feel
@@ -97,22 +97,25 @@ public:
     // the layers do matter (unless you use ADD for everything)
     // for simplicity’s sake, you just add shapes according to the operation order
 
-    // not efficient, don't add too many shapes please
+    virtual // not efficient, don't add too many shapes please
     uint16_t getShapePixel(int16_t x, int16_t y);
 
-    void clearShapes();
+    virtual void clearShapes();
 
-    void setRectangle(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color, EpShape::Operation operation = EpShape::ADD);
+    virtual void setRectangle(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color, EpShape::Operation operation);
 
-    void setCircle(int16_t x, int16_t y, int16_t diameter, uint8_t color, EpShape::Operation operation = EpShape::ADD);
+    virtual void setCircle(int16_t x, int16_t y, int16_t diameter, uint8_t color, EpShape::Operation operation);
 
-    void setTransparencyColor(uint8_t color);
+    virtual void setTransparencyColor(uint8_t color);
 
-    void setTransparencyPattern();
+    virtual void setTransparencyPattern();
 
-    uint8_t getTransparencyColor();
+    virtual uint8_t getTransparencyColor();
 
-    /// for pros (for redRam and bwRam) ///
+    virtual /// for pros (for redRam and bwRam) ///
+    uint8_t** _getBlocks();
+
+    virtual // only for linking 2 1BPP bitmaps with the same size together
     void _linkBitmap(EpBitmap* nextBitmap);
 
     EpBitmap* _nextBitmap = nullptr; // the remaining bits will be shifted left and sent to the next bitmap
@@ -121,10 +124,10 @@ public:
 
     void _streamBytesOutBegin();
 
-    void _streamInBytesNext(uint8_t byte);
+    void _streamBytesInNext(uint8_t byte);
 
     // keep count of bytes read yourself, it will certainly crash if you go over!
-    uint8_t _streamOutBytesNext();
+    uint8_t _streamBytesOutNext();
 
 private:
     int16_t WIDTH, HEIGHT;
@@ -139,12 +142,13 @@ private:
     uint8_t** blocks;
     uint16_t blockSize; // in bytes
     uint16_t blockSizeExp; // 1 << blockSizeExp = blockSize
-    /// TODO: vector blendMode
 
-    uint16_t streamBytesInCurrentBlock;
-    uint32_t streamBytesInCurrentByte;
-    uint16_t streamBytesOutCurrentBlock;
-    uint32_t streamBytesOutCurrentByte;
+    uint16_t streamBytesInCurrentBlockIdx;
+    uint32_t streamBytesInRemainingBytesInBlock;
+    uint8_t* streamBytesInByte;
+    uint16_t streamBytesOutCurrentBlockIdx;
+    uint32_t streamBytesOutRemainingBytesInBlock;
+    uint8_t* streamBytesOutByte;
 };
 
 
