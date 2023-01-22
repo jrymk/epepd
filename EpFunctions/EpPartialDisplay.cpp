@@ -80,10 +80,10 @@ const unsigned char EpPartialDisplay::lut_DU2[] PROGMEM = {
 const unsigned char EpPartialDisplay::lut_A2[] PROGMEM = {
         // 00: VCOM, 01: 15V, 11: 5V, 10: -15V
         /* KEEP BLACK */ 0b00000000, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* TO WHITE   */ 0b10001000, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* TO BLACK   */ 0b01000100, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* TO WHITE   */ 0b00001000, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* TO BLACK   */ 0b00000100, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         /* KEEP WHITE */ 0b00000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* VCOM */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* GROUP 1 */ 12, 1, 26, 1, /* REPEAT */ 0,
+        /* GROUP 1 */ 0, 0, 16, 1, /* REPEAT */ 3, // TODO: one long pull or multiple small pulls better?
         /* GROUP 2 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 3 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 4 */ 0, 0, 0, 0, /* REPEAT */ 0,
@@ -98,23 +98,8 @@ const unsigned char EpPartialDisplay::lut_A2[] PROGMEM = {
 
 EpPartialDisplay::EpPartialDisplay(Epepd &epepd) : EpFunction(epepd) {}
 
-__attribute__((flatten)) void EpPartialDisplay::display(EpBitmap* source, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force) {
-    epepd->initDisplay();
-
-    switch (displayMode) {
-        case GC2_FULL:
-            epepd->writeLUT(lut_GC2);
-            break;
-        case GC2_PARTIAL:
-            epepd->writeLUT(lut_GC2_PARTIAL_1);
-            break;
-        case DU2:
-            epepd->writeLUT(lut_DU2);
-            break;
-        case A2:
-            epepd->writeLUT(lut_A2);
-    }
-
+/// TODO: prep for next windowed update
+void EpPartialDisplay::display(EpBitmap* source, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force) {
     switch (displayMode) {
         case GC2_FULL:
         case DU2:
@@ -133,14 +118,13 @@ __attribute__((flatten)) void EpPartialDisplay::display(EpBitmap* source, Displa
                     // takes over 200ms, just calling functions (immediately return) takes 50ms
 
                     for (int16_t dx = 0; dx < 8; dx++) {
-                        src |= (source->getPixel(x + dx, y) & 0x80) >> (dx);
+                        src |= (source->getPixel(x + dx, y) & 0x80) >> dx;
                         if (partial)
-                            par |= (partial->getPixel(x + dx, y) & 0x80) >> (dx);
+                            par |= (partial->getPixel(x + dx, y) & 0x80) >> dx;
                         if (force)
-                            fce |= (force->getPixel(x + dx, y) & 0x80) >> (dx);
+                            fce |= (force->getPixel(x + dx, y) & 0x80) >> dx;
                     }
 
-//                    if ((x & 0b111) == 0b111) {
                     // make sure each streamBytesNext is only called once
                     old = epepd->getBwRam()->_streamBytesOutNext();
                     // derived from good old Kmap
@@ -150,16 +134,26 @@ __attribute__((flatten)) void EpPartialDisplay::display(EpBitmap* source, Displa
                     src = 0x00;
                     par = (partial) ? 0x00 : 0xFF;
                     fce = 0x00;
-//                    }
                 }
             }
             Serial.printf("[epepd] EpPartialDisplay write ram took %lldus\n", esp_timer_get_time() - start);
 
+            epepd->initDisplay();
+            switch (displayMode) {
+                case GC2_FULL:
+                    epepd->writeLUT(lut_GC2);
+                    break;
+                case DU2:
+                    epepd->writeLUT(lut_DU2);
+                    break;
+                case A2:
+                    epepd->writeLUT(lut_A2);
+            }
             epepd->writeToDisplay();
             epepd->updateDisplay();
             break;
         }
-        case GC2_PARTIAL: {
+        case GC2_PARTIAL: { /// TODO: use optimized code here too
             uint64_t start = esp_timer_get_time();
             epepd->getRedRam()->_streamBytesInBegin();
             epepd->getBwRam()->_streamBytesInBegin();
@@ -190,6 +184,8 @@ __attribute__((flatten)) void EpPartialDisplay::display(EpBitmap* source, Displa
             }
             Serial.printf("[epepd] EpPartialDisplay (round 1) write ram took %lldus\n", esp_timer_get_time() - start);
 
+            epepd->initDisplay();
+            epepd->writeLUT(lut_GC2_PARTIAL_1);
             epepd->writeToDisplay();
             epepd->updateDisplay();
 
@@ -219,11 +215,11 @@ __attribute__((flatten)) void EpPartialDisplay::display(EpBitmap* source, Displa
             }
             Serial.printf("[epepd] EpPartialDisplay (round 2) write ram took %lldus\n", esp_timer_get_time() - start);
 
+            epepd->writeLUT(lut_GC2_PARTIAL_2);
             epepd->writeToDisplay();
             epepd->updateDisplay();
             break;
         }
     }
-//    epepd->powerOff();
 }
 

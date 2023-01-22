@@ -53,6 +53,11 @@ void Epepd::init() {
 }
 
 void Epepd::initDisplay() {
+    if (waitingForUpdateCompletion) {
+        waitUntilIdle();
+        waitingForUpdateCompletion = false;
+    }
+
     uint64_t start = esp_timer_get_time();
     if (isHibernating) {
         hwReset();
@@ -124,6 +129,11 @@ void Epepd::initDisplay() {
 }
 
 void Epepd::writeLUT(const uint8_t* data) {
+    if (waitingForUpdateCompletion) { // from experimentation, it seems that writing LUT requires BUSY flag = 0
+        waitUntilIdle();
+        waitingForUpdateCompletion = false;
+    }
+
     uint64_t start = esp_timer_get_time();
     if (data == nullptr)
         data = lut_GC4;
@@ -157,6 +167,10 @@ void Epepd::setBorder(BorderStyle border) {
 }
 
 void Epepd::writeToDisplay() {
+    if (waitingForUpdateCompletion) { // from experimentation, it seems that writing to display requires BUSY flag = 0
+        waitUntilIdle();
+        waitingForUpdateCompletion = false;
+    }
     uint64_t start = esp_timer_get_time();
     uint32_t size = uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 8;
     writeCommand(0x26);
@@ -177,12 +191,18 @@ void Epepd::writeToDisplay() {
 }
 
 void Epepd::updateDisplay() {
+    if (waitingForUpdateCompletion) {
+        waitUntilIdle();
+        waitingForUpdateCompletion = false;
+    }
+
     uint64_t start = esp_timer_get_time();
     writeCommand(0x22);
     writeData(0xCF); // display mode 2
 
     writeCommand(0x20); // activate
-    waitUntilIdle();
+//    waitUntilIdle(); // why would I wait for it? I could update the next frame in the meantime!
+    waitingForUpdateCompletion = true;
     Serial.printf("[epepd] Display update took %lldus\n", esp_timer_get_time() - start);
 }
 
@@ -218,6 +238,11 @@ void Epepd::powerOn() {
 
 void Epepd::powerOff() {
     if (isPoweredOn) {
+        if (waitingForUpdateCompletion) {
+            waitUntilIdle();
+            waitingForUpdateCompletion = false;
+        }
+
         writeCommand(0x22);
         writeData(0x83); // disable analog -> disable clock signal
         /*

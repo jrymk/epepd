@@ -21,10 +21,29 @@
 
 #define LUT_SIZE 105
 
+/*
+ * LUT framerate definition
+ * F	40ms / 7.5
+ * E	40ms / 6.5
+ * D	40ms / 5.5
+ * C	40ms / 4.5
+ * B	40ms / 3.5
+ * A	40ms / 2.5
+ * 9	40ms / 1.5
+ * 8	40ms / 8
+ * 7	40ms / 7
+ * 6	40ms / 6
+ * 5	40ms / 5
+ * 4	40ms / 4
+ * 3	40ms / 3
+ * 2	40ms / 2
+ * 1	40ms / 1
+ * 0	40ms / 0.5
+ */
+
 #include <SPI.h>
 #include <functional>
 #include "EpBitmap.h"
-#include "EpBitmapFast.h"
 #include "EpFunction.h"
 
 class Epepd {
@@ -88,7 +107,8 @@ private:
 
     bool isPoweredOn = false;  // is clock signal active? (disable voltage generation to avoid screen fade)
     bool isHibernating = true; // hibernating requires hwReset + initDisplay to restore
-
+    bool waitingForUpdateCompletion = false;
+    
     int16_t csPin, dcPin, rstPin, busyPin;
     SPIClass* spi;
     SPISettings spiSettings;

@@ -150,13 +150,6 @@ const uint8_t EpGreyscaleDisplay::lut_GC16_2[] PROGMEM = {
 EpGreyscaleDisplay::EpGreyscaleDisplay(Epepd &epepd) : EpFunction(epepd) {}
 
 void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMode displayMode) {
-    epepd->initDisplay();
-
-    if (displayMode == GC4)
-        epepd->writeLUT(lut_GC4);
-    if (displayMode == GC16)
-        epepd->writeLUT(lut_GC16_1);
-
     uint64_t start = esp_timer_get_time();
     epepd->getRedRam()->_streamBytesInBegin();
     epepd->getBwRam()->_streamBytesInBegin();
@@ -182,13 +175,17 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMo
     }
     Serial.printf("[epepd] EpGreyscaleDisplay (round 1) write ram took %lldus\n", esp_timer_get_time() - start);
 
+
+    epepd->initDisplay();
+    if (displayMode == GC4)
+        epepd->writeLUT(lut_GC4);
+    if (displayMode == GC16)
+        epepd->writeLUT(lut_GC16_1);
     epepd->writeToDisplay();
     epepd->updateDisplay();
 
-
     if (displayMode == GC16) {
         /// round 2
-        epepd->writeLUT(lut_GC16_2);
 
         start = esp_timer_get_time();
         epepd->getRedRam()->_streamBytesInBegin();
@@ -213,9 +210,11 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMo
         }
         Serial.printf("[epepd] EpGreyscaleDisplay (round 2) write ram took %lldus\n", esp_timer_get_time() - start);
 
+        // anything that requires waiting for display BUSY goes last
+        epepd->writeLUT(lut_GC16_2);
         epepd->writeToDisplay();
         epepd->updateDisplay();
     }
 
-    epepd->powerOff();
+//    epepd->powerOff();
 }

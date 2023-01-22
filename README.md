@@ -85,19 +85,20 @@ Update: Well actually it isn't *that* slow, this is just from processing that ma
 Here are the benchmarks for processing a whole frame:
 
 ```
-134400 gfxBuffer.getPixel calls                took  75967us, 0.565260us/call (like reading from a 4bpp image) 
-134400 epepd.getBwRam()->getPixel calls        took  77058us, 0.573385us/call (like reading from a 1bpp image)
- 16800 epepd.getBwRam()->_streamOutBytes calls took   3197us, 0.190595us/call (like reading old frame data)
- 16800 epepd.getBwRam()->_streamInBytes calls  took   3200us, 0.190536us/call (like writing display frame data)
-134400 gfxBuffer.drawPixel calls               took  93460us, 0.695394us/call (like Adafruit_GFX fillScreen, unoptimized)
-134400 GFXcanvas1.getPixel calls               took  54493us, 0.405491us/call (to see how Adafruit performs)
-134400 GFXcanvas1.drawPixel calls              took 107950us, 0.803229us/call (to see how Adafruit performs)
-134400 GFXcanvas8.getPixel calls               took  41016us, 0.305216us/call (to see how Adafruit performs)
-134400 GFXcanvas8.drawPixel calls              took  70207us, 0.522381us/call (to see how Adafruit performs)
+134400 gfxBuffer.getPixel calls                took  77668us, 0.577917us/call (like reading from a 4bpp image) 
+134400 epepd.getBwRam()->getPixel calls        took  78746us, 0.585915us/call (like reading from a 1bpp image)
+ 16800 epepd.getBwRam()->_streamOutBytes calls took   3061us, 0.182262us/call (like reading old frame data)
+ 16800 epepd.getBwRam()->_streamInBytes calls  took   3057us, 0.182024us/call (like writing display frame data)
+134400 gfxBuffer.drawPixel calls               took  98549us, 0.733281us/call (like Adafruit_GFX fillScreen, unoptimized)
+134400 GFXcanvas1.getPixel calls               took  54512us, 0.405603us/call (to see how Adafruit performs)
+134400 GFXcanvas1.drawPixel calls              took 107966us, 0.803318us/call (to see how Adafruit performs)
+134400 GFXcanvas8.getPixel calls               took  41009us, 0.305164us/call (to see how Adafruit performs)
+134400 GFXcanvas8.drawPixel calls              took  70193us, 0.522299us/call (to see how Adafruit performs)
 ```
 
-Considering Adafruit_GFX doesn't split the buffer into chunks (not even one 8 bit full frame buffer will fit in memory, IIRC, and there are no 2 bit options), I
-think I'm actually doing fine. At least I'm now sure that I'm not a whole magnitude slower or something. I thought the ESP32 were faster than this though,
+Considering Adafruit_GFX doesn't split the buffer into chunks (not even one 8 bit full frame buffer will fit in memory, on boot my ESP32 only has a largest
+block of only 113792 bytes long, and there are no 2 bit options, or 3, or 4...),
+I think I'm actually doing fine. At least I'm now sure that I'm not a whole magnitude slower or something. I thought the ESP32 were faster than this though,
 disappointing...
 
 So the next goal will be to optimize by lowering pixel count, by supporting windowed update.

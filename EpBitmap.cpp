@@ -2,7 +2,7 @@
 
 #define SHOW_HEAP_INFO
 
-constexpr const uint8_t EPBITMAP_PIXEL_MASK[8] = {0b10000000, 0b11000000, 0b11100000, 0b11110000, 0b11111000, 0b11111100, 0b11111110, 0b11111111};
+constexpr const uint8_t EPBITMAP_PIXEL_MASK[9] = {0b10000000, 0b10000000, 0b11000000, 0b11100000, 0b11110000, 0b11111000, 0b11111100, 0b11111110, 0b11111111};
 
 EpBitmap::EpBitmap(int16_t w, int16_t h, uint8_t bitsPerPixel) :
         Adafruit_GFX(w, h) {
@@ -89,22 +89,21 @@ void EpBitmap::deallocate() {
     return;
 }
 
-// inlining this does not help
-uint8_t EpBitmap::getPixel(int16_t x, int16_t y) { // I hope I were better at optimization... this will get called a lot
+__attribute__((always_inline)) uint8_t EpBitmap::getPixel(int16_t x, int16_t y) {
 //    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((x >> 3) & 1) != ((y >> 3) & 1)) ? 0b10000000 : 0b01000000) : this->transparencyColor;
     // rotated 45 degs and offset by some amount for better clarity
 //    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((((x + 7) - y) >> 2) + (((x + 7) - y) >> 4) & 1) != (((x + (y + 3)) >> 2) + ((x + (y + 3)) >> 4) & 1))
 //                                                                         ? 0b10000000 : 0b01000000)
 //                                                                      : this->transparencyColor;
 
-    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? (
-            (
-                    ((x & 0b11) == 0) && ((y & 0b11) == 1) ||
-                    ((x & 0b11) == 1) && ((y & 0b11) == 0) ||
-                    ((x & 0b11) == 2) && ((y & 0b11) == 2) ||
-                    ((x & 0b11) == 3) && ((y & 0b11) == 3)
-            )
-            ? 0b01000000 : 0b10000000) : this->transparencyColor;
+//    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? (
+//            (
+//                    (((x & 0b11) == 0) && ((y & 0b11) == 1)) ||
+//                    (((x & 0b11) == 1) && ((y & 0b11) == 0)) ||
+//                    (((x & 0b11) == 2) && ((y & 0b11) == 2)) ||
+//                    (((x & 0b11) == 3) && ((y & 0b11) == 3))
+//            )
+//            ? 0b01000000 : 0b10000000) : this->transparencyColor;
 
     // most common modes optimization
     if (blendMode == BITMAP_ONLY)
@@ -122,10 +121,6 @@ uint8_t EpBitmap::getPixel(int16_t x, int16_t y) { // I hope I were better at op
     bitmapColor = getBitmapPixel(x, y);
 
     switch (blendMode) {
-        case BITMAP_ONLY:
-            return bitmapColor;
-        case SHAPES_ONLY:
-            return (shapesColor == 0xFFFF) ? transparencyColor : shapesColor;
         case BITMAP_ADD_SHAPES:
             return (shapesColor == 0xFFFF) ? bitmapColor : shapesColor;
         case BITMAP_SUBTRACT_SHAPES:
@@ -141,28 +136,28 @@ uint8_t EpBitmap::getPixel(int16_t x, int16_t y) { // I hope I were better at op
     }
 }
 
-void EpBitmap::setPixel(int16_t x, int16_t y, uint8_t color) {
-    switch (adafruitGfxMode) {
-        case ON_BITMAP:
-            return setBitmapPixel(x, y, color);
-        case ON_SHAPES:
-            if (shapes.size() == 99) Serial.printf("Oh my god there's 100 shapes, your display will take forever to update\n");
-            return setRectangle(x, y, 1, 1, color, EpShape::ADD);
-        case ON_VISIBLE:
-            switch (blendMode) {
-                case SHAPES_ONLY:
-                case BITMAP_ADD_SHAPES:
-                case SHAPES_SUBTRACT_BITMAP: // these as well, but nah let's not add "getPixel" such slow function to the mix
-                case SHAPES_INTERSECT_BITMAP:
-                    if (shapes.size() == 99) Serial.printf("Oh my god there's 100 shapes, your display will take forever to update\n");
-                    return setRectangle(x, y, 1, 1, color, EpShape::ADD);
-                case BITMAP_ONLY:
-                case BITMAP_SUBTRACT_SHAPES:
-                case BITMAP_INTERSECT_SHAPES:
-                case SHAPES_ADD_BITMAP: // technically if bitmap already transparent, we should set shape, but that is going to be confusing. you are only supposed to get BITMAP_ONLY, I'm already over-delivering
-                default:
-                    return setBitmapPixel(x, y, color);
-            }
+__attribute__((always_inline)) void EpBitmap::setPixel(int16_t x, int16_t y, uint8_t color) {
+    if (adafruitGfxMode == ON_BITMAP)
+        return setBitmapPixel(x, y, color);
+    if (adafruitGfxMode == ON_SHAPES) {
+        if (shapes.size() == 99) Serial.printf("Oh my god there's 100 shapes, your display will take forever to update\n");
+        return setRectangle(x, y, 1, 1, color, EpShape::ADD);
+    }
+    if (adafruitGfxMode == ON_VISIBLE) {
+        switch (blendMode) {
+            case SHAPES_ONLY:
+            case BITMAP_ADD_SHAPES:
+            case SHAPES_SUBTRACT_BITMAP: // these as well, but nah let's not add "getPixel" such slow function to the mix
+            case SHAPES_INTERSECT_BITMAP:
+                if (shapes.size() == 99) Serial.printf("Oh my god there's 100 shapes, your display will take forever to update\n");
+                return setRectangle(x, y, 1, 1, color, EpShape::ADD);
+            case BITMAP_ONLY:
+            case BITMAP_SUBTRACT_SHAPES:
+            case BITMAP_INTERSECT_SHAPES:
+            case SHAPES_ADD_BITMAP: // technically if bitmap already transparent, we should set shape, but that is going to be confusing. you are only supposed to get BITMAP_ONLY, I'm already over-delivering
+            default:
+                return setBitmapPixel(x, y, color);
+        }
     }
 }
 
@@ -173,16 +168,16 @@ __attribute__((always_inline)) uint8_t EpBitmap::getBitmapPixel(uint32_t x, uint
     }
     if (x >= WIDTH || y >= HEIGHT) // use unsigned int to save x < 0 and y < 0
         return transparencyColor;
-    int32_t bitIdx = (y * WIDTH + x) * BPP; // of the first bit of the pixel
+    uint32_t bitIdx = (y * WIDTH + x) * BPP; // of the first bit of the pixel
     uint16_t joined = ((blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)]) << 8;
 
-    if ((bitIdx & 0b111) + BPP > 8) // to the next byte, for non-1248 BPPs
+    if ((bitIdx & 0b111) + BPP > 8) // cross byte boundary to the next byte
         joined |= ((blocks[((bitIdx >> 3) + 1) >> blockSizeExp])[((bitIdx >> 3) + 1) & ((1 << blockSizeExp) - 1)]);
 
-    joined >>= (8 - (bitIdx & 0b111)); // always right shift
+    joined >>= (8 - (bitIdx & 0b111)); // (bitIdx & 0b111 bits)(bpp bits of data)(...)(2nd byte)
     joined &= EPBITMAP_PIXEL_MASK[BPP]; // mask
 
-    /// nextBitmap will be deprecated
+    /// nextBitmap will be deprecated, I don't even care
     uint8_t next = 0;
     if (_nextBitmap) {
         if (!_nextBitmap->allocated) {
@@ -197,7 +192,7 @@ __attribute__((always_inline)) uint8_t EpBitmap::getBitmapPixel(uint32_t x, uint
         next = nextJoined << (8 - BPP);
     }
 
-    return (joined << (8 - BPP)) | next;
+    return joined | (next >> BPP);
 }
 
 __attribute__((always_inline)) void EpBitmap::setBitmapPixel(uint32_t x, uint32_t y, uint8_t color) {
@@ -205,27 +200,29 @@ __attribute__((always_inline)) void EpBitmap::setBitmapPixel(uint32_t x, uint32_
         Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
         return;
     }
-    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT)
+    if (x >= WIDTH || y >= HEIGHT)
         return;
-    color >>= (8 - BPP); // align right (and trim excess)
-    uint32_t bitIdx = (uint32_t(y) * WIDTH + x + 1) * BPP - 1; // of the last bit of the pixel
-    uint16_t mask = ((uint16_t(1) << BPP) - 1) << (7 - (bitIdx & 0b111));
-    (blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)] &= ~mask; // reset
-    (blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)] |= color << (7 - (bitIdx & 0b111));
-    if ((bitIdx & 0b111) + 1 < BPP) { // cross byte boundary
-        (blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] &= ~(mask >> 8); // reset
-        (blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] |= color >> ((bitIdx & 0b111) + 1);
+    uint32_t bitIdx = (y * WIDTH + x) * BPP; // of the first bit of the pixel
+    uint8_t* byte = &((blocks[bitIdx >> 3 >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)]);
+    *byte &= ~(EPBITMAP_PIXEL_MASK[BPP] >> (bitIdx & 0b111));
+    *byte |= ((color & EPBITMAP_PIXEL_MASK[BPP]) >> (bitIdx & 0b111));
+
+    if ((bitIdx & 0b111) + BPP > 8) { // cross byte boundary to the next byte
+        uint8_t* byte2 = &((blocks[((bitIdx >> 3) + 1) >> blockSizeExp])[((bitIdx >> 3) + 1) & ((1 << blockSizeExp) - 1)]);
+        *byte2 &= ~(EPBITMAP_PIXEL_MASK[BPP] << (8 - (bitIdx & 0b111)));
+        *byte2 |= ((color & EPBITMAP_PIXEL_MASK[BPP]) << (8 - (bitIdx & 0b111)));
     }
+
     if (_nextBitmap) {
         if (!_nextBitmap->allocated) {
             Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
             return;
         }
         color <<= BPP;
-        (_nextBitmap->blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)] &= ~mask; // reset
+        (_nextBitmap->blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)] &= ~EPBITMAP_PIXEL_MASK[BPP]; // reset
         (_nextBitmap->blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)] |= color << (7 - (bitIdx & 0b111));
         if ((bitIdx & 0b111) + 1 < BPP) { // cross byte boundary
-            (_nextBitmap->blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] &= ~(mask >> 8); // reset
+            (_nextBitmap->blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] &= ~(EPBITMAP_PIXEL_MASK[BPP] >> 8); // reset
             (_nextBitmap->blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] |= color >> ((bitIdx & 0b111) + 1);
         }
     }
@@ -262,39 +259,23 @@ __attribute__((always_inline)) uint16_t EpBitmap::getShapePixel(int16_t x, int16
     uint16_t currColor = 0xFFFF;
     for (auto &shape: shapes) {
         if (shape.intersect(x, y)) {
-            switch (shape.operation) {
-                case EpShape::ADD:
+            if (shape.operation == EpShape::ADD)
+                currColor = shape.color;
+            else if (shape.operation == EpShape::SUBTRACT)
+                currColor = 0xFFFF;
+            else if (shape.operation == EpShape::INTERSECT) {
+                if (currColor != 0xFFFF)
                     currColor = shape.color;
-                    break;
-                case EpShape::SUBTRACT:
+            }
+            else if (shape.operation == EpShape::EXCLUDE) {
+                if (currColor != 0xFFFF) // overlapping area
                     currColor = 0xFFFF;
-                    break;
-                case EpShape::INTERSECT:
-                    if (currColor != 0xFFFF)
-                        currColor = shape.color;
-                    break;
-                case EpShape::INTERSECT_USE_BEHIND:
-                    break;
-                case EpShape::EXCLUDE:
-                    if (currColor != 0xFFFF) // overlapping area
-                        currColor = 0xFFFF;
-                    else // new shape only
-                        currColor = shape.color;
-                    break;
+                else // new shape only
+                    currColor = shape.color;
             }
         }
-        else {
-            switch (shape.operation) {
-                case EpShape::ADD:
-                case EpShape::SUBTRACT:
-                case EpShape::EXCLUDE:
-                    break;
-                case EpShape::INTERSECT:
-                case EpShape::INTERSECT_USE_BEHIND:
-                    currColor = 0xFFFF;
-                    break;
-            }
-        }
+        else if (shape.operation == EpShape::INTERSECT || shape.operation == EpShape::INTERSECT_USE_BEHIND)
+            currColor = 0xFFFF;
     }
     return currColor;
 }
@@ -309,7 +290,7 @@ void EpBitmap::setAdafruitGFXTargetMode(AdafruitGfxTargetMode mode) {
 
 void EpBitmap::setTransparencyColor(uint8_t color) {
     transparencyColor &= ~(1 << 15);
-    transparencyColor = color;
+    transparencyColor |= color;
 }
 
 uint8_t EpBitmap::getTransparencyColor() {
@@ -359,7 +340,7 @@ void EpBitmap::_linkBitmap(EpBitmap* nextBitmap) {
     _nextBitmap = nextBitmap;
 }
 
-
+/// TODO: fix
 uint8_t EpBitmap::getLuminance(uint16_t color) {
 #ifdef EPEPD_USE_PERCEIVED_LUMINANCE
     float r = float((color & 0b1111100000000000) >> 8) / 256.f;

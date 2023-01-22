@@ -53,3 +53,32 @@ After some optimization
 134400 GFXcanvas8.getPixel calls took 41013us, 0.305186us/call
 134400 GFXcanvas8.drawPixel calls took 70206us, 0.522403us/call
 ```
+
+before setPixel optimization
+
+```
+134400 gfxBuffer.getPixel calls took 77658us, 0.577842us/call
+134400 epepd.getBwRam()->getPixel calls took 78739us, 0.585863us/call
+16800 epepd.getBwRam()->_streamOutBytes calls took 3065us, 0.182440us/call
+16800 epepd.getBwRam()->_streamInBytes calls took 3058us, 0.182083us/call
+134400 gfxBuffer.drawPixel calls took 108672us, 0.808601us/call
+134400 GFXcanvas1.getPixel calls took 54504us, 0.405543us/call
+134400 GFXcanvas1.drawPixel calls took 107958us, 0.803259us/call
+134400 GFXcanvas8.getPixel calls took 41013us, 0.305193us/call
+134400 GFXcanvas8.drawPixel calls took 70191us, 0.522292us/call
+```
+
+and after... (meh)
+
+```
+134400 gfxBuffer.getPixel calls took 77668us, 0.577917us/call
+134400 epepd.getBwRam()->getPixel calls took 78746us, 0.585915us/call
+16800 epepd.getBwRam()->_streamOutBytes calls took 3061us, 0.182262us/call
+16800 epepd.getBwRam()->_streamInBytes calls took 3057us, 0.182024us/call
+134400 gfxBuffer.drawPixel calls took 98549us, 0.733281us/call
+134400 GFXcanvas1.getPixel calls took 54512us, 0.405603us/call
+134400 GFXcanvas1.drawPixel calls took 107966us, 0.803318us/call
+134400 GFXcanvas8.getPixel calls took 41009us, 0.305164us/call
+134400 GFXcanvas8.drawPixel calls took 70193us, 0.522299us/call
+```
+
