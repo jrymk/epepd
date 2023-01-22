@@ -5,6 +5,78 @@ _currently only supports Waveshare 3.7" ePaper HAT_
 
 ## What can it do?
 
+### More shades of grey? How about partial display? Same time?
+16 shades of grey is implemented, but the scale doesn't look that linear and uniform, I guess for images and anti-aliasing text, it's totally fine.\
+Greyness is not proportional to the waveform duration, but to show 16 shades of grey in two display cycles, I can't have custom waveforms for each shade, so some compromises has to be made. Of course I can get 64 shades of grey in 3 cycles, then pick 16 to create a better set, or I can display 64 shades and get the same uniformity problem...)
+
+Partial update with masks is also implemented. Here's a demo:
+
+https://user-images.githubusercontent.com/39593345/213897907-6412e682-08c0-4cbb-b81f-d64d4be2cc42.mp4
+
+(Converted oversize video with VLC, came out stretched, whatever)
+
+```cpp
+{ /// draw greyscale background
+    // clear screen
+    EpPartialDisplay partialDisplay(epd);
+    gfxBuffer.fillScreen(GFX_WHITE);
+    partialDisplay.display(&gfxBuffer, EpPartialDisplay::DU2);
+
+    // draw rectangles
+    uint16_t colorCodes[4][16] = {
+            {0b00000000, 0b11111111},
+            {0b00000000, 0b01010101, 0b10101010, 0b11111111},
+            {0b00000000, 0b00100100, 0b01001001, 0b01101101, 0b10010010, 0b10110110, 0b11011011, 0b11111111},
+            {0b00000000, 0b00010001, 0b00100010, 0b00110011, 0b01000100, 0b01010101, 0b01100110, 0b01110111,
+                    0b10001000, 0b10011001, 0b10101010, 0b10111011, 0b11001100, 0b11011101, 0b11101110, 0b11111111}
+    };
+    for (int bit = 1; bit <= 4; bit++)
+        for (int seg = 0; seg < (1 << bit); seg++)
+            gfxBuffer.fillRect((bit - 1) * (epd.EPD_WIDTH / 4), seg * (epd.EPD_HEIGHT / (1 << bit)), epd.EPD_WIDTH / depth, epd.EPD_HEIGHT / (1 << bit), colorCodes[bit - 1][seg] << 3);
+
+    // draw image using greyscaleDisplay
+    EpGreyscaleDisplay greyscaleDisplay(epd);
+    greyscaleDisplay.display(&gfxBuffer, EpGreyscaleDisplay::GC16); // greyscale clear 16
+}
+delay(1000);
+{ /// draw overlay menu with partial display
+    // create a mask for partial display
+    EpBitmapFast updateMask(280, 480, 1);
+    updateMask.setBitmapShapeBlendMode(EpBitmapFast::SHAPES_ONLY); // use shapes mode to save memory space instead of bitmap
+    updateMask.setRectangle(10, 40, 200, 400, 0xFF, EpShape::ADD);
+
+    const char* str[20] = { // Clion File menu
+            "New",
+            "Open...",
+            ...
+            "Exit"
+    };
+    gfxBuffer.fillRect(10, 40, 200, 400, GFX_WHITE);
+    int highlightedItem = 0;
+
+    EpPartialDisplay partialDisplay(epd);
+    gfxBuffer.fillRect(10, 40, 200, 400, GFX_WHITE);
+
+    // draw menu
+    gfxBuffer.setFont(&HarmonyOS_Sans_Medium8pt7b);
+    for (int f = 0; f < 20; f++) {
+        highlightedItem = f;
+        for (int i = 0; i < 20; i++) {
+            const int margin = 2, itemHeight = 18;
+            gfxBuffer.fillRect(10 + margin, 40 + margin + itemHeight * i, 200 - 2 * margin, itemHeight - 2 * margin, (highlightedItem == i) ? GFX_BLACK : GFX_WHITE);
+            gfxBuffer.setTextColor((highlightedItem == i) ? GFX_WHITE : GFX_BLACK);
+            gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
+            gfxBuffer.print(str[i]);
+        }
+        // parameters: source image, display mode (A2 for animation), partial display mask, force update mask (first draw will be force update)
+        partialDisplay.display(&gfxBuffer, EpPartialDisplay::A2, &updateMask, (f == 0) ? &updateMask : nullptr);
+    }
+}
+```
+
+You may or may not found out that... it's slow. There is no delay for each `int f` iteration.\
+Well... I'll try to optimize it. Getting pixels from EpBitmaps is way too slow (each call about 1us, but there are 280*480=134,400 pixels...)
+
 ### Anti-aliasing
 
 Rough edges? With `getPixelLUT` custom transition function, you can send pixel data that are multisampled from neighbor pixels.
