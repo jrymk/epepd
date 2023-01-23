@@ -119,6 +119,44 @@ So although I *did* waste a whole 160ms on writing to the buffer on the ESP32 an
 refresh the screen any faster. The time spent updating (for the current A2 lut) is 156ms + 350ms = about half a second.\
 Of course, any optimization in the "epepd function" part leaves more time for Adafruit_GFX drawing, data processing, etc.
 
+Another update:\
+You can now determine an update region from Adafruit_GFX functions and then pass it to the display function. For the example above, the update time is down to
+18ms!
+Because finding out the bounds of "updated pixels" is not always simple, or require additional logic. Check the code below to see how easy it is to implement
+windowed update!
+
+```
+[epepd] Updating region X from 8 to 208, Y from 114 to 147, that is 4% of a full frame!
+[epepd] EpPartialDisplay calculate lut took 17237us
+```
+
+and the code change:
+
+```cpp{6,19,20}
+partialDisplay.display(gfxBuffer, placement, EpPartialDisplay::A2, &updateMask, &updateMask, nullptr);
+
+for (int f = 0; f < 20; f++) {
+    highlightedItem = f;
+    // clear previous
+    gfxBuffer.gfxUpdatedRegion.reset(); // reset the "bounds of updated pixels" after displaying
+    int i = previousHighlightedItem;
+    gfxBuffer.fillRect(10 + margin, 40 + margin + itemHeight * i, 200 - 2 * margin, itemHeight - 2 * margin, GFX_WHITE);
+    gfxBuffer.setTextColor(GFX_BLACK);
+    gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
+    gfxBuffer.print(str[i]);
+    // highlight current
+    i = highlightedItem;
+    gfxBuffer.fillRect(10 + margin, 40 + margin + itemHeight * i, 200 - 2 * margin, itemHeight - 2 * margin, GFX_BLACK);
+    gfxBuffer.setTextColor(GFX_WHITE);
+    gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
+    gfxBuffer.print(str[i]);
+    // display (with windowed update)
+    partialDisplay.display(gfxBuffer, placement, EpPartialDisplay::A2, &updateMask, nullptr, &gfxBuffer.gfxUpdatedRegion);
+    // we did nothing extra, just calling gfx draw functions. the region where pixels has been updated (gfxUpdatedRegion) has been determined automatically
+    previousHighlightedItem = highlightedItem;
+}
+```
+
 ### Anti-aliasing
 
 Rough edges? With `getPixelLUT` custom transition function, you can send pixel data that are multisampled from neighbor pixels.
@@ -157,16 +195,16 @@ and for the display function override... _(the actual "plugin" style classes has
 void Epepd::display() {
     initDisplay();
     
-    writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
+    writeToDisplay([](Epepd &epepd, int16_t originX, int16_t y) {
         int blackPixels = 0;
         for (int dx = -1; dx <= 1; dx++)
             for (int dy = -1; dy <= 1; dy++)
-                if (epepd.gfxBuffer->getPixel(x + dx, y + dy)) blackPixels++;
+                if (epepd.gfxBuffer->getPixel(originX + dx, y + dy)) blackPixels++;
         const uint8_t defBlack[] = { LUT0, LUT0, LUT1, LUT1, LUT2, LUT2, LUT2, LUT2, LUT3, LUT3 };
         const uint8_t defWhite[] = { LUT0, LUT0, LUT0, LUT0, LUT0, LUT1, LUT1, LUT1, LUT2, LUT3 };
         // what LUT0-3 does depend on the LUT, which will be customizable too
         // in this case it is just a normal 4-shades-of-grey LUT
-        return (epepd.gfxBuffer->getPixel(x, y) ? defBlack[blackPixels] : defWhite[blackPixels]);
+        return (epepd.gfxBuffer->getPixel(originX, y) ? defBlack[blackPixels] : defWhite[blackPixels]);
     });
     
     updateDisplay();
@@ -211,11 +249,11 @@ and for the display function override...
 void Epepd::display() {
     initDisplay();
     
-    writeToDisplay([](Epepd &epepd, int16_t x, int16_t y) {
+    writeToDisplay([](Epepd &epepd, int16_t originX, int16_t y) {
         int blackPixels = 0;
         for (int dx = 0; dx <= 1; dx++)
             for (int dy = 0; dy <= 1; dy++)
-                if (epepd.gfxBuffer->getPixel(x * 2 + dx, y * 2 + dy)) blackPixels++;
+                if (epepd.gfxBuffer->getPixel(originX * 2 + dx, y * 2 + dy)) blackPixels++;
         const uint8_t def[] = {LUT0, LUT1, LUT1, LUT2, LUT3};
         return def[blackPixels];
     });

@@ -266,12 +266,12 @@ void Epepd::powerOff() {
 
 void Epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     writeCommand(0x11); // data entry blendMode setting
-    writeData(0x03); // x increment, y increment, updated on x direction
+    writeData(0x03); // originX increment, y increment, updated on originX direction
 
-    writeCommand(0x44); // set ram x address start/end position
+    writeCommand(0x44); // set ram originX address start/end position
     writeData(x & 0xFF);
     writeData(x >> 8);
-    writeData((x + w - 1) & 0xFF); // from 0 to 439 is (x = 0, w = 480)
+    writeData((x + w - 1) & 0xFF); // from 0 to 439 is (originX = 0, w = 480)
     writeData((x + w - 1) >> 8);
 
     writeCommand(0x45); // set ram y address start/end position
@@ -280,7 +280,7 @@ void Epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     writeData((y + h - 1) & 0xFF);
     writeData((y + h - 1) >> 8);
 
-    writeCommand(0x4e); // set ram x address counter
+    writeCommand(0x4e); // set ram originX address counter
     writeData(x & 0xFF);
     writeData(x >> 8);
 

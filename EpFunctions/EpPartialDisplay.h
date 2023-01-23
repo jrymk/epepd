@@ -21,12 +21,16 @@ public:
     /**
      * Displays a bitmap onto the screen
      * @param source The source bitmap image
+     * @param placement How the source image (and masks) is placed onto the target bitmap
      * @param displayMode Update with the given display mode
-     * @param partial Mask for partial update, bright pixels will be updated if pixels changed, set to null to enable partial update on the whole screen
-     * @param force Mask for force update, bright pixels will be updated regardless of previous image, set to null to disable
+     * @param partial Mask for partial update, placement applied, bright pixels will be updated if pixels changed, set to null to enable partial update on the whole screen
+     * @param force Mask for force update, placement applied, bright pixels will be updated regardless of previous image, set to null to disable
+     * @param updateRegion The region that will be scanned, in target bitmap coords (placement not applied).
+     *                     Source image and masks are disregarded outside the updateRegion and assumed unchanged. Behavior depends on the display mode.
+     *                     This is NOT for setting the partial update area. Pixels outside the region may be scanned (and updated if mask set incorrectly) as well.
      * Refer README.md for descriptions of the display modes
      */
-    void display(EpBitmap* source, DisplayMode displayMode, EpBitmap* partial = nullptr, EpBitmap* force = nullptr);
+    void display(EpBitmap &source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial = nullptr, EpBitmap* force = nullptr, EpRegion* updateRegion = nullptr);
 
 private:
     static const uint8_t lut_GC2[];

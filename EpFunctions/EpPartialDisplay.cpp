@@ -99,30 +99,39 @@ const unsigned char EpPartialDisplay::lut_A2[] PROGMEM = {
 EpPartialDisplay::EpPartialDisplay(Epepd &epepd) : EpFunction(epepd) {}
 
 /// TODO: prep for next windowed update
-void EpPartialDisplay::display(EpBitmap* source, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force) {
+void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force, EpRegion* updateRegion) {
+    uint64_t start = esp_timer_get_time();
+    if (updateRegion) {
+        epepd->getBwRam()->_streamBytesOutBegin(0, 0);
+        epepd->getRedRam()->_streamBytesInBegin(0, 0);
+        for (uint32_t i = 0; i < (uint32_t(epepd->EPD_WIDTH) * epepd->EPD_HEIGHT) >> 3; i++)
+            epepd->getRedRam()->_streamBytesInNext(epepd->getBwRam()->_streamBytesOutNext());
+    }
+    EpRegion region = EpRegion::_testAndAlign(updateRegion, epepd->EPD_WIDTH, epepd->EPD_HEIGHT);
+    Serial.printf("[epepd] Updating region X from %d to %d, Y from %d to %d, that is %d%% of a full frame!\n",
+                  region.x, region.x + region.w, region.y, region.y + region.h, int(100.f * region.h * region.w / epepd->EPD_WIDTH / epepd->EPD_HEIGHT));
     switch (displayMode) {
         case GC2_FULL:
         case DU2:
         case A2: {
-            uint64_t start = esp_timer_get_time();
-            epepd->getRedRam()->_streamBytesInBegin();
-            epepd->getBwRam()->_streamBytesInBegin();
-            epepd->getBwRam()->_streamBytesOutBegin();
             uint8_t src = 0x00; // new data
             uint8_t old; // old data
             uint8_t par = (partial) ? 0x00 : 0xFF; // partial update
             uint8_t fce = 0x00; // force update
 
-            for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
-                for (int16_t x = 0; x < epepd->EPD_WIDTH; x += 8) { // 155990us -> 154670us
+            for (int16_t y = region.y; y < region.y + region.h; y++) {
+                for (int16_t x = region.x; x < region.x + region.w; x += 8) { // 155990us -> 154670us
                     // takes over 200ms, just calling functions (immediately return) takes 50ms
+                    epepd->getRedRam()->_streamBytesInBegin(x, y);
+                    epepd->getBwRam()->_streamBytesInBegin(x, y);
+                    epepd->getBwRam()->_streamBytesOutBegin(x, y);
 
                     for (int16_t dx = 0; dx < 8; dx++) {
-                        src |= (source->getPixel(x + dx, y) & 0x80) >> dx;
+                        src |= (source.getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                         if (partial)
-                            par |= (partial->getPixel(x + dx, y) & 0x80) >> dx;
+                            par |= (partial->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                         if (force)
-                            fce |= (force->getPixel(x + dx, y) & 0x80) >> dx;
+                            fce |= (force->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                     }
 
                     // make sure each streamBytesNext is only called once
@@ -165,7 +174,7 @@ void EpPartialDisplay::display(EpBitmap* source, DisplayMode displayMode, EpBitm
 
             for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
-                    src |= (source->getPixel(x, y) & 0x80) >> (x & 0b111);
+                    src |= (source.getPixel(x, y) & 0x80) >> (x & 0b111);
                     if (partial)
                         par |= (partial->getPixel(x, y) & 0x80) >> (x & 0b111);
                     if (force)
@@ -196,7 +205,7 @@ void EpPartialDisplay::display(EpBitmap* source, DisplayMode displayMode, EpBitm
 
             for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
-                    src |= (source->getPixel(x, y) & 0x80) >> (x & 0b111);
+                    src |= (source.getPixel(x, y) & 0x80) >> (x & 0b111);
                     if (partial)
                         par |= (partial->getPixel(x, y) & 0x80) >> (x & 0b111);
                     if (force)

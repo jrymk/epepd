@@ -82,3 +82,4 @@ and after... (meh)
 134400 GFXcanvas8.drawPixel calls took 70193us, 0.522299us/call
 ```
 
+156321us

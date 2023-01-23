@@ -90,18 +90,18 @@ void EpBitmap::deallocate() {
 }
 
 __attribute__((always_inline)) uint8_t EpBitmap::getPixel(int16_t x, int16_t y) {
-//    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((x >> 3) & 1) != ((y >> 3) & 1)) ? 0b10000000 : 0b01000000) : this->transparencyColor;
+//    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((originX >> 3) & 1) != ((y >> 3) & 1)) ? 0b10000000 : 0b01000000) : this->transparencyColor;
     // rotated 45 degs and offset by some amount for better clarity
-//    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((((x + 7) - y) >> 2) + (((x + 7) - y) >> 4) & 1) != (((x + (y + 3)) >> 2) + ((x + (y + 3)) >> 4) & 1))
+//    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? ((((((originX + 7) - y) >> 2) + (((originX + 7) - y) >> 4) & 1) != (((originX + (y + 3)) >> 2) + ((originX + (y + 3)) >> 4) & 1))
 //                                                                         ? 0b10000000 : 0b01000000)
 //                                                                      : this->transparencyColor;
 
 //    uint8_t transparencyColor = (this->transparencyColor & (1 << 15)) ? (
 //            (
-//                    (((x & 0b11) == 0) && ((y & 0b11) == 1)) ||
-//                    (((x & 0b11) == 1) && ((y & 0b11) == 0)) ||
-//                    (((x & 0b11) == 2) && ((y & 0b11) == 2)) ||
-//                    (((x & 0b11) == 3) && ((y & 0b11) == 3))
+//                    (((originX & 0b11) == 0) && ((y & 0b11) == 1)) ||
+//                    (((originX & 0b11) == 1) && ((y & 0b11) == 0)) ||
+//                    (((originX & 0b11) == 2) && ((y & 0b11) == 2)) ||
+//                    (((originX & 0b11) == 3) && ((y & 0b11) == 3))
 //            )
 //            ? 0b01000000 : 0b10000000) : this->transparencyColor;
 
@@ -109,7 +109,7 @@ __attribute__((always_inline)) uint8_t EpBitmap::getPixel(int16_t x, int16_t y) 
     if (blendMode == BITMAP_ONLY)
         return getBitmapPixel(x, y);
     if (blendMode == SHAPES_ONLY) {
-        uint16_t shapesColor = getShapePixel(x, y); // just read the first: 152556us
+        uint16_t shapesColor = getShapePixel(x, y);
         return (shapesColor == 0xFFFF) ? transparencyColor : shapesColor;
     }
 
@@ -166,7 +166,7 @@ __attribute__((always_inline)) uint8_t EpBitmap::getBitmapPixel(uint32_t x, uint
         Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
         return transparencyColor;
     }
-    if (x >= WIDTH || y >= HEIGHT) // use unsigned int to save x < 0 and y < 0
+    if (x >= WIDTH || y >= HEIGHT) // use unsigned int to save originX < 0 and y < 0
         return transparencyColor;
     uint32_t bitIdx = (y * WIDTH + x) * BPP; // of the first bit of the pixel
     uint16_t joined = ((blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)]) << 8;
@@ -249,35 +249,33 @@ __attribute__((always_inline)) bool EpShape::intersect(int16_t a, int16_t b) {
         return ((a >= x) && (a <= x + w - 1) && (b >= y) && (b <= y + h - 1));
     else if (shape == CIRCLE)
         return ((float(a) - x) * (float(a) - x) + (float(b) - y) * (float(b) - y)) <= (float(w) / 2.f) * (float(w) / 2.f);
-//    switch (shape) {
-//        case RECTANGLE:
-//        case CIRCLE: // adafruit seems to do things differently... will that work?
-//    }
 }
 
 __attribute__((always_inline)) uint16_t EpBitmap::getShapePixel(int16_t x, int16_t y) {
-    uint16_t currColor = 0xFFFF;
+    EpShape* owner = nullptr; // nullptr = no owner = transparent
     for (auto &shape: shapes) {
         if (shape.intersect(x, y)) {
             if (shape.operation == EpShape::ADD)
-                currColor = shape.color;
+                owner = &shape;
             else if (shape.operation == EpShape::SUBTRACT)
-                currColor = 0xFFFF;
+                owner = nullptr;
             else if (shape.operation == EpShape::INTERSECT) {
-                if (currColor != 0xFFFF)
-                    currColor = shape.color;
+                if (owner)
+                    owner = &shape;
             }
             else if (shape.operation == EpShape::EXCLUDE) {
-                if (currColor != 0xFFFF) // overlapping area
-                    currColor = 0xFFFF;
+                if (owner) // overlapping area
+                    owner = nullptr;
                 else // new shape only
-                    currColor = shape.color;
+                    owner = &shape;
             }
         }
         else if (shape.operation == EpShape::INTERSECT || shape.operation == EpShape::INTERSECT_USE_BEHIND)
-            currColor = 0xFFFF;
+            owner = nullptr;
     }
-    return currColor;
+    return (owner == nullptr)
+           ? 0xFFFF
+           : (owner->fillBitmap ? owner->fillBitmap->getPixel(owner->fillBitmapPlacement.getSourcePos(x, y)) : owner->fillColor);
 }
 
 void EpBitmap::setBitmapShapeBlendMode(EpBitmap::BitmapShapeBlendMode mode) {
@@ -305,35 +303,40 @@ uint8_t** EpBitmap::_getBlocks() {
     return blocks;
 }
 
-void EpBitmap::_streamBytesInBegin() {
-    streamBytesInCurrentBlockIdx = 0;
-    streamBytesInRemainingBytesInBlock = 0;
+void EpBitmap::_streamBytesInBegin(int16_t x, int16_t y) {
+    uint32_t byte = (uint32_t(y) * WIDTH + x) >> 3;
+    streamBytesInCurrentBlockIdx = byte >> blockSizeExp;
+    streamBytesInByteIdxInBlock = byte & ((1 << blockSizeExp) - 1);
+    streamBytesInByte = &(blocks[streamBytesInCurrentBlockIdx])[streamBytesInByteIdxInBlock];
 }
 
 void EpBitmap::_streamBytesInNext(uint8_t byte) {
-    if (!streamBytesInRemainingBytesInBlock) {
-        streamBytesInByte = &(blocks[streamBytesInCurrentBlockIdx])[0];
-        streamBytesInCurrentBlockIdx++;
-        streamBytesInRemainingBytesInBlock = blockSize;
-    }
-    streamBytesInRemainingBytesInBlock--;
     *streamBytesInByte++ = byte;
+    streamBytesInByteIdxInBlock++;
+    if (streamBytesInByteIdxInBlock == blockSize) {
+        streamBytesInCurrentBlockIdx++;
+        streamBytesInByteIdxInBlock = 0;
+        streamBytesInByte = &(blocks[streamBytesInCurrentBlockIdx])[streamBytesInByteIdxInBlock];
+    }
 }
 
-void EpBitmap::_streamBytesOutBegin() {
-    streamBytesOutCurrentBlockIdx = 0;
-    streamBytesOutRemainingBytesInBlock = 0;
+void EpBitmap::_streamBytesOutBegin(int16_t x, int16_t y) {
+    uint32_t byte = (uint32_t(y) * WIDTH + x) >> 3;
+    streamBytesOutCurrentBlockIdx = byte >> blockSizeExp;
+    streamBytesOutByteIdxInBlock = byte & ((1 << blockSizeExp) - 1);
+    streamBytesOutByte = &(blocks[streamBytesOutCurrentBlockIdx])[streamBytesOutByteIdxInBlock];
 }
 
 
 uint8_t EpBitmap::_streamBytesOutNext() {
-    if (!streamBytesOutRemainingBytesInBlock) {
-        streamBytesOutByte = &(blocks[streamBytesOutCurrentBlockIdx])[0];
+    uint8_t ret = *streamBytesOutByte++;
+    streamBytesOutByteIdxInBlock++;
+    if (streamBytesOutByteIdxInBlock == blockSize) {
         streamBytesOutCurrentBlockIdx++;
-        streamBytesOutRemainingBytesInBlock = blockSize;
+        streamBytesOutByteIdxInBlock = 0;
+        streamBytesOutByte = &(blocks[streamBytesOutCurrentBlockIdx])[streamBytesOutByteIdxInBlock];
     }
-    streamBytesOutRemainingBytesInBlock--;
-    return *streamBytesOutByte++;
+    return ret;
 }
 
 void EpBitmap::_linkBitmap(EpBitmap* nextBitmap) {
@@ -354,5 +357,80 @@ uint8_t EpBitmap::getLuminance(uint16_t color) {
 
 void EpBitmap::drawPixel(int16_t x, int16_t y, uint16_t color) {
     setPixel(x, y, getLuminance(color));
+    gfxUpdatedRegion.include(x, y);
+}
+
+__attribute__((always_inline)) std::pair<int16_t, int16_t> EpPlacement::getTargetPos(int16_t x, int16_t y) const {
+    if (rotation == 0)
+        return {originX + x, originY + y};
+    if (rotation == 1)
+        return {originX + y, originY - x};
+    if (rotation == 2)
+        return {originX - x, originY - y};
+    if (rotation == 3)
+        return {originX - y, originY + x};
+}
+
+__attribute__((always_inline)) std::pair<int16_t, int16_t> EpPlacement::getSourcePos(int16_t x, int16_t y) const {
+    if (rotation == 0)
+        return {x - originX, y - originY};
+    if (rotation == 1)
+        return {originY - y, x - originX};
+    if (rotation == 2)
+        return {originX - x, originY - y};
+    if (rotation == 3)
+        return {y - originY, originX - x};
+}
+
+void EpRegion::reset() {
+    x = 0;
+    y = 0;
+    w = -1;
+    h = -1;
+}
+
+__attribute__((always_inline)) void EpRegion::include(int16_t ix, int16_t iy) {
+    if (w < 0 || h < 0) {
+        x = ix;
+        y = iy;
+        w = 1;
+        h = 1;
+        return;
+    }
+    if (ix < x)
+        x = ix;
+    if (iy < y)
+        y = iy;
+    if (ix >= x + w)
+        w = ix - x + 1;
+    if (iy >= y + h)
+        h = iy - y + 1;
+}
+
+__attribute__((always_inline)) void EpRegion::include(std::pair<int16_t, int16_t> coord) {
+    include(coord.first, coord.second);
+}
+
+__attribute__((always_inline)) void EpRegion::include(EpRegion &region, EpPlacement &placement) {
+    include(placement.getTargetPos(region.x, region.y));
+    include(placement.getTargetPos(region.x + region.w - 1, region.y + region.h - 1));
+}
+
+EpRegion EpRegion::_testAndAlign(EpRegion* userRegion, int16_t w, int16_t h) {
+    if (userRegion == nullptr)
+        return EpRegion(0, 0, w, h);
+    if (userRegion->w < 0 || userRegion->h < 0)
+        return EpRegion(0, 0, 0, 0);
+    int16_t l = userRegion->x;
+    int16_t r = userRegion->x + userRegion->w; // after the right edge
+    int16_t u = userRegion->y;
+    int16_t d = userRegion->y + userRegion->h;
+    l = (l < 0 ? 0 : (l >= w ? w - 1 : l)) & ~0b111;
+    r = ((r < 0 ? 0 : (r > w ? w : r)) + 7) & ~0b111;
+    u = u < 0 ? 0 : (u >= h ? h - 1 : u);
+    d = d < 0 ? 0 : (d > h ? h : d);
+    return (userRegion == nullptr)
+           ? EpRegion(0, 0, w, h)
+           : EpRegion(l, u, r - l, d - u); /// TODO: confirm this is correct
 }
 

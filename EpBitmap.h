@@ -13,13 +13,51 @@
 
 //#define EPEPD_USE_PERCEIVED_LUMINANCE 1
 
-struct EpPosition {
-    int16_t x = 0;
-    int16_t y = 0;
+// Determines the relative position of bitmaps, for feeding into functions and setting EpShape fills
+struct EpPlacement {
+    int16_t originX = 0;
+    int16_t originY = 0;
     int8_t rotation = 0; // *90 degrees counter-clockwise (obviously)
 
-    EpPosition(int16_t x, int16_t y, int8_t rotation = 0) : x(x), y(y), rotation(rotation) {}
+    // how the source bitmap is placed onto the target bitmap,
+    // by "where the (0,0) on the source bitmap goes, in terms of target bitmap coordinates
+    // and the rotation, in 90 degrees counter-clockwise turns of the source image
+    EpPlacement(int16_t x, int16_t y, int8_t rotation = 0) : originX(x), originY(y), rotation(rotation & 0b11) {}
+
+    std::pair<int16_t, int16_t> getTargetPos(int16_t x, int16_t y) const;
+
+    std::pair<int16_t, int16_t> getTargetPos(std::pair<int16_t, int16_t> coord) const { return getTargetPos(coord.first, coord.second); }
+
+    std::pair<int16_t, int16_t> getSourcePos(int16_t x, int16_t y) const;
+
+    std::pair<int16_t, int16_t> getSourcePos(std::pair<int16_t, int16_t> coord) const { return getSourcePos(coord.first, coord.second); }
 };
+
+// Stores a rectangle to limit pixel-by-pixel scan area
+struct EpRegion {
+    int16_t x = 0;
+    int16_t y = 0;
+    int16_t w = 0;
+    int16_t h = 0;
+
+    EpRegion() = default;
+
+    EpRegion(int16_t x, int16_t y, int16_t w, int16_t h) : x(x), y(y), w(w), h(h) {}
+
+    void reset();
+
+    void include(int16_t x, int16_t y);
+
+    void include(std::pair<int16_t, int16_t> coord);
+
+    // include a "source" bitmap updated region (doing the other way around doesn't make sense)
+    void include(EpRegion &region, EpPlacement &placement);
+
+    // If userRegion is null -> full. X coordinates are byte-aligned (width is assumed a multiple of 8)
+    static EpRegion _testAndAlign(EpRegion* userRegion, int16_t w, int16_t h);
+};
+
+class EpBitmap;
 
 struct EpShape {
     enum Shape {
@@ -37,10 +75,18 @@ struct EpShape {
     int16_t y;
     int16_t w;
     int16_t h;
-    uint8_t color;
+    EpBitmap* fillBitmap = nullptr;
+    EpPlacement fillBitmapPlacement;
+    uint8_t fillColor = 0;
+
+    EpShape(Shape shape, Operation op, int16_t x, int16_t y, int16_t w, int16_t h, EpBitmap* fill, EpPlacement &placement) :
+            shape(shape), operation(op), x(x), y(y), w(w), h(h), fillBitmap(fill), fillBitmapPlacement(placement) {}
+
+    EpShape(Shape shape, Operation op, int16_t x, int16_t y, int16_t w, int16_t h, EpBitmap* fill) :
+            shape(shape), operation(op), x(x), y(y), w(w), h(h), fillBitmap(fill), fillBitmapPlacement(0, 0, 0) {}
 
     EpShape(Shape shape, Operation op, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color) :
-            shape(shape), operation(op), x(x), y(y), w(w), h(h), color(color) {}
+            shape(shape), operation(op), x(x), y(y), w(w), h(h), fillBitmapPlacement(0, 0, 0), fillColor(color) {}
 
     bool intersect(int16_t x, int16_t y);
 };
@@ -50,12 +96,6 @@ public:
     EpBitmap(int16_t w, int16_t h, uint8_t bitsPerPixel);
 
     ~EpBitmap();
-
-    // Adafruit_GFX override function to write buffer
-    void drawPixel(int16_t x, int16_t y, uint16_t color) override;
-
-    // from 16 bit R5G6B5 color Adafruit_GFX uses to 8 bit luminance value for ePaper display
-    static uint8_t getLuminance(uint16_t color);
 
     enum BitmapShapeBlendMode {
         BITMAP_ONLY, SHAPES_ONLY,             //   if shape    | else
@@ -80,7 +120,7 @@ public:
     /// BITMAP MODE ///
     // by default EpBitmap uses bitmap blendMode. it takes up more memory space but allows for much better detail
 
-    virtual // allocate the bitmap memory, split into blocks, blockSize in bytes (you are not going to allocate multiple blocks over 64K on the esp32, so that's the biggest you can do)
+    // allocate the bitmap memory, split into blocks, blockSize in bytes (you are not going to allocate multiple blocks over 64K on the esp32, so that's the biggest you can do)
     // blockSize must be a power of 2 (4200 will become 4096). I have to do this to get rid of the divides and mods
     bool allocate(uint32_t blockSize);
 
@@ -89,9 +129,20 @@ public:
     virtual void deallocate();
 
 
-    virtual // do we need pixels over 8 bit wide?
+    // Adafruit_GFX override function to write buffer
+    void drawPixel(int16_t x, int16_t y, uint16_t color) override;
+
+    // before drawing, call reset, this will include the pixels updated during drawing, useful when setting unknown updated region
+    EpRegion gfxUpdatedRegion;
+
+    // from 16 bit R5G6B5 color Adafruit_GFX uses to 8 bit luminance value for ePaper display
+    static uint8_t getLuminance(uint16_t color);
+
+    // do we need pixels over 8 bit wide?
     // get the color of a particular pixel, aligned left
     uint8_t getPixel(int16_t x, int16_t y);
+
+    uint8_t getPixel(std::pair<int16_t, int16_t> coord) { return getPixel(coord.first, coord.second); }
 
     virtual void setPixel(int16_t x, int16_t y, uint8_t color);
 
@@ -105,7 +156,7 @@ public:
     // the layers do matter (unless you use ADD for everything)
     // for simplicity’s sake, you just add shapes according to the operation order
 
-    virtual // not efficient, don't add too many shapes please
+    // not efficient, don't add too many shapes please
     uint16_t getShapePixel(int16_t x, int16_t y);
 
     virtual void clearShapes();
@@ -128,11 +179,11 @@ public:
 
     EpBitmap* _nextBitmap = nullptr; // the remaining bits will be shifted left and sent to the next bitmap
 
-    void _streamBytesInBegin();
-
-    void _streamBytesOutBegin();
+    void _streamBytesInBegin(int16_t x = 0, int16_t y = 0);
 
     void _streamBytesInNext(uint8_t byte);
+
+    void _streamBytesOutBegin(int16_t x = 0, int16_t y = 0);
 
     // keep count of bytes read yourself, it will certainly crash if you go over!
     uint8_t _streamBytesOutNext();
@@ -152,10 +203,10 @@ private:
     uint16_t blockSizeExp; // 1 << blockSizeExp = blockSize
 
     uint16_t streamBytesInCurrentBlockIdx;
-    uint32_t streamBytesInRemainingBytesInBlock;
+    uint32_t streamBytesInByteIdxInBlock;
     uint8_t* streamBytesInByte;
     uint16_t streamBytesOutCurrentBlockIdx;
-    uint32_t streamBytesOutRemainingBytesInBlock;
+    uint32_t streamBytesOutByteIdxInBlock;
     uint8_t* streamBytesOutByte;
 };
 
