@@ -47,6 +47,10 @@
 #include "EpBitmapMono.h"
 #include "EpFunction.h"
 
+struct EpDisplaySettings {
+
+};
+
 class Epepd {
 public:
     Epepd(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin);
@@ -86,7 +90,7 @@ public:
 
     // to turn off panel voltage generator so the image doesn't fade
     void powerOff();
-    
+
     // get redRam bitmap (1 bit)
     EpBitmapMono* getRedRam();
 

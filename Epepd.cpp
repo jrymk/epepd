@@ -86,7 +86,8 @@ void Epepd::initDisplay() {
         writeCommand(0x04); // source driving voltage control
         writeData(0x41); // VSH1 = 15V (01)
         writeData(0xA8); // VSH2 = 5V (11)
-        writeData(0x32); // VSL = -15V (10)
+        writeData(0x1E); // VSL = -10V (10)
+//        writeData(0x32); // VSL = -15V (10)
 
         writeCommand(0x0C); // Booster Soft-start Control
         writeData(0xAE);

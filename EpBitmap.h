@@ -13,7 +13,7 @@
 #define GFX_LIGHTGREY 0b1010110101010101
 #define GFX_WHITE     0b1111111111111111
 
-//#define EPEPD_USE_PERCEIVED_LUMINANCE 1
+#define EPEPD_USE_PERCEIVED_LUMINANCE 1
 
 // Determines the relative position of bitmaps, for feeding into functions and setting EpShape fills
 struct EpPlacement {

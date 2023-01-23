@@ -271,10 +271,11 @@ uint8_t** EpBitmap::_getBlocks() {
 /// TODO: fix
 uint8_t EpBitmap::getLuminance(uint16_t color) {
 #ifdef EPEPD_USE_PERCEIVED_LUMINANCE
-    float r = float((color & 0b1111100000000000) >> 8) / 256.f;
-    float g = float((color & 0b0000011111100000) >> 3) / 256.f;
-    float b = float((color & 0b0000000000011111) << 3) / 256.f;
-    return std::min(uint8_t((0.299f * r * r + 0.587f * g * g + 0.114f * b * b) * 256.f), uint8_t(0xFF));
+    float r = float(((color & 0b1111100000000000) >> 8) + ((color & 0b1111100000000000) >> 13)) / 256.f;
+    float g = float(((color & 0b0000011111100000) >> 3) + ((color & 0b0000011111100000) >> 9)) / 256.f;
+    float b = float(((color & 0b0000000000011111) << 3) + ((color & 0b0000000000011111) >> 2)) / 256.f;
+    return std::min(uint8_t((0.2126f * r + 0.7152f * g + 0.0722f * b) * 256.f), uint8_t(0xFF));
+//    return std::min(uint8_t((0.299f * r * r + 0.587f * g * g + 0.114f * b * b) * 256.f), uint8_t(0xFF));
 #else
     return (color & 0b0000011111100000) >> 3;
 #endif

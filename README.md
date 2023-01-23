@@ -5,12 +5,33 @@ _currently only supports Waveshare 3.7" ePaper HAT_
 
 ## What can it do?
 
-### More shades of grey? How about partial display? Same time?
+Like... draw stuff in 480*280 hIgH rEsOlUtIoN 4-bit 16 color wIdE cOlOr gAMut on your 4-shades-of-grey-capable ePaper display?
 
-16 shades of grey is implemented, but the scale doesn't look that linear and uniform, I guess for images and anti-aliasing text, it's totally fine.\
-Greyness is not proportional to the waveform duration, but to show 16 shades of grey in two display cycles, I can't have custom waveforms for each shade, so
-some compromises has to be made. Of course I can get 64 shades of grey in 3 cycles, then pick 16 to create a better set, or I can display 64 shades and get the
-same uniformity problem...)
+<img src="doc/Suletta.jpg" width="800">
+
+<img src="doc/Suletta_macro.jpg" width="500">
+
+`source: MS Gundam - The Witch from Mercury`
+
+---
+
+This library is not done, and so does this README. It's a mess, and information may be incorrect.
+
+### 16 shades of grey
+
+<img src="doc/16_shades_of_grey_tuned.jpg" width="600">
+
+This is drawn with the `EpGreyscaleDisplay` function with the display mode `GC16`. It uses 3 update cycles to create 64 different "brightening" durations after wiping the screen black. Then from which 16 colors that most represents a greyscale are picked (manually, by eye). It can technically be done in 2 display cycles, but due to the nature of the ePaper chemistry (idk), "brightening" one unit of time from black will create a far bigger brightness difference than the difference between 62 units and 63 units. 
+
+```cpp
+const uint8_t EpGreyscaleDisplay::lut_64_to_16[] = {0, 1, 2, 3, 4, 5, 7, 9, 11, 13, 15, 23, 27, 31, 53, 63};
+```
+
+This is the lookup table I ended up using. dYou might see why doing in 2 cycles won't work as well as this does.\
+Also, since the black capsules are "barely below white" through this process, after a few display updates, the blacks tend to fade away (not that much though, don't worry, and it is after 40 partial updates). Even though I set VCOM voltage to 0 (so DCVCOM = VSS, so no voltage difference at all), it still does that. Starting from grey and do brightening and darkening at the same time is another option. The video below is done this way in 2 display cycles. But this method does not guarantee strictly increasing brightness, especially that the environment temperature can quite heavily affect the display, I think this is a better option.\
+If I start from white and darken the image, the white tends to become dirty and greyish. I think we want a clean white over a slightly greyish black, right?
+
+### More shades of grey? How about partial display? Same time?
 
 Partial update with masks is also implemented. Here's a demo:
 
@@ -384,10 +405,12 @@ The balance of features and compromises is decided based on the ESP32, mainly DR
 
 ## References
 
-[Display driver datasheet](https://www.waveshare.com/w/upload/2/2a/SSD1677_1.0.pdf)\
-[Waveshare wiki page](https://www.waveshare.com/wiki/3.7inch_e-Paper_HAT_Manual#Introduction)\
-[ZinggJM/GxEPD2](https://github.com/ZinggJM/GxEPD2)\
-[ZinggJM/GxEPD2_4G](https://github.com/ZinggJM/GxEPD2_4G)\
-[Definitions of display modes on high end epaper displays that I can't afford](https://www.waveshare.net/w/upload/c/c4/E-paper-mode-declaration.pdf)\
-[Allocating Frame Buffer Memory 4KB At A Time](https://newscrewdriver.com/2021/05/21/allocating-frame-buffer-memory-4kb-at-a-time/)\
-[ESP API that will make allocating tons of memory possible](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/mem_alloc.html#_CPPv432heap_caps_get_largest_free_block8uint32_t)
+- [Display driver datasheet](https://www.waveshare.com/w/upload/2/2a/SSD1677_1.0.pdf)
+- [Waveshare wiki page](https://www.waveshare.com/wiki/3.7inch_e-Paper_HAT_Manual#Introduction)
+- [Terrible code, but it works. GxEPD2 seems to have taken the display-module-specific stuff from here too](https://github.com/waveshare/e-Paper)
+- [ZinggJM/GxEPD2](https://github.com/ZinggJM/GxEPD2)
+- [ZinggJM/GxEPD2_4G](https://github.com/ZinggJM/GxEPD2_4G)
+- [Definitions of display modes on high end epaper displays that I can't afford](https://www.waveshare.net/w/upload/c/c4/E-paper-mode-declaration.pdf)
+- [Allocating Frame Buffer Memory 4KB At A Time](https://newscrewdriver.com/2021/05/21/allocating-frame-buffer-memory-4kb-at-a-time/)
+- [ESP API that will make allocating tons of memory possible](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/mem_alloc.html#_CPPv432heap_caps_get_largest_free_block8uint32_t)
+- [Helped me create the Suletta bloody hands bitmap](https://github.com/javl/image2cpp)
