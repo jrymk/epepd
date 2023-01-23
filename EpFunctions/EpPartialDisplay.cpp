@@ -83,7 +83,7 @@ const unsigned char EpPartialDisplay::lut_A2[] PROGMEM = {
         /* TO WHITE   */ 0b00001000, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         /* TO BLACK   */ 0b00000100, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         /* KEEP WHITE */ 0b00000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* VCOM */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* GROUP 1 */ 0, 0, 16, 1, /* REPEAT */ 3, // TODO: one long pull or multiple small pulls better?
+        /* GROUP 1 */ 0, 0, 8, 1, /* REPEAT */ 2, // TODO: one long pull or multiple small pulls better?
         /* GROUP 2 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 3 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 4 */ 0, 0, 0, 0, /* REPEAT */ 0,
@@ -136,7 +136,7 @@ void EpPartialDisplay::display(EpBitmap* source, DisplayMode displayMode, EpBitm
                     fce = 0x00;
                 }
             }
-            Serial.printf("[epepd] EpPartialDisplay write ram took %lldus\n", esp_timer_get_time() - start);
+            Serial.printf("[epepd] EpPartialDisplay calculate lut took %lldus\n", esp_timer_get_time() - start);
 
             epepd->initDisplay();
             switch (displayMode) {

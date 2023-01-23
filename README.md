@@ -80,7 +80,7 @@ delay(1000);
 You may or may not found out that... it's slow. There is no delay for each `int f` iteration.\
 Well... I'll try to optimize it. Getting pixels from EpBitmaps is way too slow (each call about 1us, but there are 280*480=134,400 pixels...)
 
-Update: Well actually it isn't *that* slow, this is just from processing that many pixels one by one.\
+Update: Well actually it isn't *that* slow, this is just from processing that many pixels one by one.
 
 Here are the benchmarks for processing a whole frame:
 
@@ -102,6 +102,22 @@ I think I'm actually doing fine. At least I'm now sure that I'm not a whole magn
 disappointing...
 
 So the next goal will be to optimize by lowering pixel count, by supporting windowed update.
+
+Another update:\
+I realized I can't even write to the display while it is still updating.
+
+```
+[epepd] EpPartialDisplay calculate lut took 156320us (meanwhile display is still updating)
+[epepd] EpGreyscaleDisplay waited 350668us while display updating (still not done)
+[epepd] Init display took 137us (finally done, now I can send commands)
+[epepd] Write LUT took 112us
+[epepd] Sending two sets of display buffer took 35385us (reducing this is the only hope of increasing update rates)
+[epepd] Display update took 28us (just a command, nothing updated yet)
+```
+
+So although I *did* waste a whole 160ms on writing to the buffer on the ESP32 and have to spend another 36ms sending it to the display, I still can't
+refresh the screen any faster. The time spent updating (for the current A2 lut) is 156ms + 350ms = about half a second.\
+Of course, any optimization in the "epepd function" part leaves more time for Adafruit_GFX drawing, data processing, etc.
 
 ### Anti-aliasing
 

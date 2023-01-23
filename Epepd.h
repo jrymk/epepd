@@ -108,7 +108,7 @@ private:
     bool isPoweredOn = false;  // is clock signal active? (disable voltage generation to avoid screen fade)
     bool isHibernating = true; // hibernating requires hwReset + initDisplay to restore
     bool waitingForUpdateCompletion = false;
-    
+
     int16_t csPin, dcPin, rstPin, busyPin;
     SPIClass* spi;
     SPISettings spiSettings;

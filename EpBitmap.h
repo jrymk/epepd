@@ -13,6 +13,14 @@
 
 //#define EPEPD_USE_PERCEIVED_LUMINANCE 1
 
+struct EpPosition {
+    int16_t x = 0;
+    int16_t y = 0;
+    int8_t rotation = 0; // *90 degrees counter-clockwise (obviously)
+
+    EpPosition(int16_t x, int16_t y, int8_t rotation = 0) : x(x), y(y), rotation(rotation) {}
+};
+
 struct EpShape {
     enum Shape {
         RECTANGLE,

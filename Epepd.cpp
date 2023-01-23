@@ -54,8 +54,11 @@ void Epepd::init() {
 
 void Epepd::initDisplay() {
     if (waitingForUpdateCompletion) {
+        uint64_t start = esp_timer_get_time();
         waitUntilIdle();
         waitingForUpdateCompletion = false;
+        Serial.printf("[epepd] EpGreyscaleDisplay waited %lldus while display updating\n", esp_timer_get_time() - start);
+
     }
 
     uint64_t start = esp_timer_get_time();

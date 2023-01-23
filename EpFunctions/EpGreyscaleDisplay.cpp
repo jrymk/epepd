@@ -107,6 +107,7 @@ const uint8_t EpGreyscaleDisplay::lut_GC4[] PROGMEM = {
 
 //// OPTION 3 / 3
 //// Better contrast across the board. The scale overall looks the best (most balanced) but not strictly increasing (e.g. 1011 < 1100 and 0011 < 0100 not guaranteed)
+//// Tuning these values don't make that much sense, as just a little temperature change can throw things off (by quite a lot!)
 const uint8_t EpGreyscaleDisplay::lut_GC16_1[] PROGMEM = {
         // 00: VCOM, 01: 15V, 11: 5V, 10: -15V
         /* 00xx */ 0b10101010, 0b00000110, 0b00000100, 0b01010100, 0, 0, 0, 0, 0, 0,
@@ -115,15 +116,15 @@ const uint8_t EpGreyscaleDisplay::lut_GC16_1[] PROGMEM = {
         /* 11xx */ 0b10000000, 0b00000110, 0b00000100, 0b00101000, 0, 0, 0, 0, 0, 0, /* VCOM */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         /* GROUP 1 */ 8, 8, 8, 40, /* REPEAT */ 0,
         /* GROUP 2 */ 0, 0, 32, 32, /* REPEAT */ 3, // clean
-        /* GROUP 3 */ 0, 0, 10, 1, /* REPEAT */ 0, // set mid-tone (darken)
-        /* GROUP 4 */ 4, 12, 4, 1, /* REPEAT */ 0, // brighten/darken by bits 0 and 1
+        /* GROUP 3 */ 0, 0, 25, 1, /* REPEAT */ 0, // set mid-tone (darken) (increase the third number if too light)
+        /* GROUP 4 */ 20, 8, 4, 1, /* REPEAT */ 0, // brighten/darken by bits 0 and 1
         /* GROUP 5 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 6 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 7 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 8 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 9 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP10 */ 0, 0, 0, 0, /* REPEAT */ 0,
-        /* FRAMERATE */ 0x88, 0x88, 0x88, 0x88, 0x88
+        /* FRAMERATE */ 0x77, 0x77, 0x77, 0x77, 0x77
 };
 
 const uint8_t EpGreyscaleDisplay::lut_GC16_2[] PROGMEM = {
@@ -160,10 +161,6 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMo
         for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
             src0 |= (source->getPixel(x, y) & 0x80) >> (x & 0b111);
             src1 |= ((source->getPixel(x, y) & 0x40) << 1) >> (x & 0b111); // shifting a negative amount is undefined
-//            src0 = (x >= 140) ? 0xFF : 0x00; // divide by 8 and add 4 result in 4 - 63 (0b00111111)
-//            src1 = ((y >> 3) & 0b00010000) ? 0xFF : 0x00;
-//            if ((y & 0b111) == 0)
-//                src0 = src1 = x & 0b1000 ? 0x00 : 0xFF;
 
             if ((x & 0b111) == 0b111) {
                 epepd->getRedRam()->_streamBytesInNext(src1);
@@ -195,10 +192,6 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMo
             for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
                 src0 |= (source->getPixel(x, y) & 0x20) << 2 >> (x & 0b111);
                 src1 |= ((source->getPixel(x, y) & 0x10) << 3) >> (x & 0b111); // shifting a negative amount is undefined
-//                src0 = ((y >> 3) & 0b00001000) ? 0xFF : 0x00; // for red
-//                src1 = ((y >> 3) & 0b00000100) ? 0xFF : 0x00; // for bw
-//                if ((y & 0b111) == 0)
-//                    src0 = src1 = x & 0b1000 ? 0x00 : 0xFF;
 
                 if ((x & 0b111) == 0b111) {
                     epepd->getRedRam()->_streamBytesInNext(src1);
