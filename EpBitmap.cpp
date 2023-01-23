@@ -205,8 +205,24 @@ void EpBitmap::setRectangle(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t 
     shapes.push_back(EpShape(EpShape::RECTANGLE, operation, x, y, w, h, color));
 }
 
+void EpBitmap::setRectangle(int16_t x, int16_t y, int16_t w, int16_t h, EpBitmap* bitmap, EpShape::Operation operation) {
+    shapes.push_back(EpShape(EpShape::RECTANGLE, operation, x, y, w, h, bitmap));
+}
+
+void EpBitmap::setRectangle(int16_t x, int16_t y, int16_t w, int16_t h, EpBitmap* bitmap, EpPlacement &placement, EpShape::Operation operation) {
+    shapes.push_back(EpShape(EpShape::RECTANGLE, operation, x, y, w, h, bitmap, placement));
+}
+
 void EpBitmap::setCircle(int16_t x, int16_t y, int16_t diameter, uint8_t color, EpShape::Operation operation) {
     shapes.push_back(EpShape(EpShape::CIRCLE, operation, x, y, diameter - 1, diameter - 1, color));
+}
+
+void EpBitmap::setCircle(int16_t x, int16_t y, int16_t diameter, EpBitmap* bitmap, EpShape::Operation operation) {
+    shapes.push_back(EpShape(EpShape::CIRCLE, operation, x, y, diameter - 1, diameter - 1, bitmap));
+}
+
+void EpBitmap::setCircle(int16_t x, int16_t y, int16_t diameter, EpBitmap* bitmap, EpPlacement &placement, EpShape::Operation operation) {
+    shapes.push_back(EpShape(EpShape::CIRCLE, operation, x, y, diameter - 1, diameter - 1, bitmap, placement));
 }
 
 __attribute__((always_inline)) bool EpShape::intersect(int16_t a, int16_t b) {
@@ -268,7 +284,6 @@ uint8_t** EpBitmap::_getBlocks() {
     return blocks;
 }
 
-/// TODO: fix
 uint8_t EpBitmap::getLuminance(uint16_t color) {
 #ifdef EPEPD_USE_PERCEIVED_LUMINANCE
     float r = float(((color & 0b1111100000000000) >> 8) + ((color & 0b1111100000000000) >> 13)) / 256.f;

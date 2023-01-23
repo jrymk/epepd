@@ -1,5 +1,24 @@
 #include "EpPartialDisplay.h"
 
+const uint8_t EpPartialDisplay::lut_FIX[] PROGMEM = {
+        // 00: VCOM, 01: 15V, 11: 5V, 10: -15V
+        /* REFRESH BLACK */ 0b00001001, 0b00001001, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* TO WHITE      */ 0b00001001, 0b00001001, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* TO BLACK      */ 0b00001001, 0b00001001, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* REFRESH WHITE */ 0b00001001, 0b00001001, 0, 0, 0, 0, 0, 0, 0, 0, /* VCOM */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        /* GROUP 1 */ 0, 0, 40, 40, /* REPEAT */ 9,
+        /* GROUP 2 */ 0, 0, 12, 12, /* REPEAT */ 9,
+        /* GROUP 3 */ 0, 0, 0, 0, /* REPEAT */ 0,
+        /* GROUP 4 */ 0, 0, 0, 0, /* REPEAT */ 0,
+        /* GROUP 5 */ 0, 0, 0, 0, /* REPEAT */ 0,
+        /* GROUP 6 */ 0, 0, 0, 0, /* REPEAT */ 0,
+        /* GROUP 7 */ 0, 0, 0, 0, /* REPEAT */ 0,
+        /* GROUP 8 */ 0, 0, 0, 0, /* REPEAT */ 0,
+        /* GROUP 9 */ 0, 0, 0, 0, /* REPEAT */ 0,
+        /* GROUP10 */ 0, 0, 0, 0, /* REPEAT */ 0,
+        /* FRAMERATE */ 0x88, 0x88, 0x88, 0x88, 0x88
+};
+
 const uint8_t EpPartialDisplay::lut_GC2[] PROGMEM = {
         // 00: VCOM, 01: 15V, 11: 5V, 10: -15V
         /* REFRESH BLACK */ 0b10101000, 0b00010100, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -101,6 +120,8 @@ EpPartialDisplay::EpPartialDisplay(Epepd &epepd) : EpFunction(epepd) {}
 /// TODO: prep for next windowed update
 void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force, EpRegion* updateRegion) {
     uint64_t start = esp_timer_get_time();
+    uint64_t total = esp_timer_get_time();
+
     if (updateRegion) // make pixels outside updateRegion not update
         memcpy(epepd->getRedRam()->_getBuffer(), epepd->getBwRam()->_getBuffer(), (uint32_t(epepd->EPD_WIDTH) * epepd->EPD_HEIGHT) >> 3);
 
@@ -109,6 +130,12 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
                   region.x, region.x + region.w, region.y, region.y + region.h, int(100.f * region.h * region.w / epepd->EPD_WIDTH / epepd->EPD_HEIGHT));
 
     switch (displayMode) {
+        case FIX:
+            epepd->initDisplay();
+            epepd->writeLUT(lut_FIX);
+            epepd->writeToDisplay();
+            epepd->updateDisplay();
+            break;
         case GC2_FULL:
         case DU2:
         case A2: {
@@ -214,5 +241,8 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
             break;
         }
     }
+
+    epepd->initDisplay();
+    Serial.printf("[epepd] EpPartialDisplay in total took %lldus\n", esp_timer_get_time() - total);
 }
 

@@ -12,6 +12,7 @@ public:
     EpPartialDisplay(Epepd &epepd);
 
     enum DisplayMode {
+        FIX,         // fix burn in caused by accidents
         GC2_FULL,    // fast, high quality, will flash once (not partial display)
         GC2_PARTIAL, // fast, high quality, will flash once for updated pixels in mask, requires two update cycles
         DU2,         // faster, low quality, good for setting the display to all white
@@ -33,6 +34,7 @@ public:
     void display(EpBitmap &source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial = nullptr, EpBitmap* force = nullptr, EpRegion* updateRegion = nullptr);
 
 private:
+    static const uint8_t lut_FIX[];
     static const uint8_t lut_GC2[];
     static const uint8_t lut_GC2_PARTIAL_1[];
     static const uint8_t lut_GC2_PARTIAL_2[];

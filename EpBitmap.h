@@ -13,7 +13,7 @@
 #define GFX_LIGHTGREY 0b1010110101010101
 #define GFX_WHITE     0b1111111111111111
 
-#define EPEPD_USE_PERCEIVED_LUMINANCE 1
+#define EPEPD_USE_PERCEIVED_LUMINANCE 1 (doesn't make it exponent/log whatever, just balance out the perception of rgb colors)
 
 // Determines the relative position of bitmaps, for feeding into functions and setting EpShape fills
 struct EpPlacement {
@@ -148,6 +148,7 @@ public:
 
     void setPixel(int16_t x, int16_t y, uint8_t color);
 
+    /// TODO: repeat bits so colors look good
     virtual uint8_t getBitmapPixel(uint32_t x, uint32_t y);
 
     virtual void setBitmapPixel(uint32_t x, uint32_t y, uint8_t color);
@@ -165,7 +166,15 @@ public:
 
     virtual void setRectangle(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color, EpShape::Operation operation);
 
+    virtual void setRectangle(int16_t x, int16_t y, int16_t w, int16_t h, EpBitmap* bitmap, EpShape::Operation operation);
+
+    virtual void setRectangle(int16_t x, int16_t y, int16_t w, int16_t h, EpBitmap* bitmap, EpPlacement &placement, EpShape::Operation operation);
+
     virtual void setCircle(int16_t x, int16_t y, int16_t diameter, uint8_t color, EpShape::Operation operation);
+
+    virtual void setCircle(int16_t x, int16_t y, int16_t diameter, EpBitmap* bitmap, EpShape::Operation operation);
+
+    virtual void setCircle(int16_t x, int16_t y, int16_t diameter, EpBitmap* bitmap, EpPlacement &placement, EpShape::Operation operation);
 
     virtual void setTransparencyColor(uint8_t color);
 
