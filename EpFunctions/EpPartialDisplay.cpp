@@ -101,15 +101,13 @@ EpPartialDisplay::EpPartialDisplay(Epepd &epepd) : EpFunction(epepd) {}
 /// TODO: prep for next windowed update
 void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force, EpRegion* updateRegion) {
     uint64_t start = esp_timer_get_time();
-    if (updateRegion) {
-        epepd->getBwRam()->_streamBytesOutBegin(0, 0);
-        epepd->getRedRam()->_streamBytesInBegin(0, 0);
-        for (uint32_t i = 0; i < (uint32_t(epepd->EPD_WIDTH) * epepd->EPD_HEIGHT) >> 3; i++)
-            epepd->getRedRam()->_streamBytesInNext(epepd->getBwRam()->_streamBytesOutNext());
-    }
+    if (updateRegion) // make pixels outside updateRegion not update
+        memcpy(epepd->getRedRam()->_getBuffer(), epepd->getBwRam()->_getBuffer(), (uint32_t(epepd->EPD_WIDTH) * epepd->EPD_HEIGHT) >> 3);
+
     EpRegion region = EpRegion::_testAndAlign(updateRegion, epepd->EPD_WIDTH, epepd->EPD_HEIGHT);
     Serial.printf("[epepd] Updating region X from %d to %d, Y from %d to %d, that is %d%% of a full frame!\n",
                   region.x, region.x + region.w, region.y, region.y + region.h, int(100.f * region.h * region.w / epepd->EPD_WIDTH / epepd->EPD_HEIGHT));
+
     switch (displayMode) {
         case GC2_FULL:
         case DU2:
@@ -120,26 +118,19 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
             uint8_t fce = 0x00; // force update
 
             for (int16_t y = region.y; y < region.y + region.h; y++) {
-                for (int16_t x = region.x; x < region.x + region.w; x += 8) { // 155990us -> 154670us
-                    // takes over 200ms, just calling functions (immediately return) takes 50ms
-                    epepd->getRedRam()->_streamBytesInBegin(x, y);
-                    epepd->getBwRam()->_streamBytesInBegin(x, y);
-                    epepd->getBwRam()->_streamBytesOutBegin(x, y);
-
+                for (int16_t x = region.x; x < region.x + region.w; x += 8) {
                     for (int16_t dx = 0; dx < 8; dx++) {
                         src |= (source.getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
-                        if (partial)
+                        if (partial) // TODO: this has potential of reading 8 bits at a time... but it may be misaligned due to placement...
                             par |= (partial->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                         if (force)
                             fce |= (force->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                     }
 
-                    // make sure each streamBytesNext is only called once
-                    old = epepd->getBwRam()->_streamBytesOutNext();
+                    old = epepd->getBwRam()->_get8MonoPixels(x, y);
                     // derived from good old Kmap
-
-                    epepd->getRedRam()->_streamBytesInNext((~src & fce) | (old & ~fce));
-                    epepd->getBwRam()->_streamBytesInNext((src & (fce | par)) | (old & ~(fce | par)));
+                    epepd->getRedRam()->_set8MonoPixels(x, y, (~src & fce) | (old & ~fce));
+                    epepd->getBwRam()->_set8MonoPixels(x, y, (src & (fce | par)) | (old & ~(fce | par)));
                     src = 0x00;
                     par = (partial) ? 0x00 : 0xFF;
                     fce = 0x00;
@@ -164,9 +155,6 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
         }
         case GC2_PARTIAL: { /// TODO: use optimized code here too
             uint64_t start = esp_timer_get_time();
-            epepd->getRedRam()->_streamBytesInBegin();
-            epepd->getBwRam()->_streamBytesInBegin();
-            epepd->getBwRam()->_streamBytesOutBegin();
             uint8_t src = 0x00; // new data
             uint8_t old; // old data
             uint8_t par = (partial) ? 0x00 : 0xFF; // partial update
@@ -181,10 +169,10 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
                         fce |= (force->getPixel(x, y) & 0x80) >> (x & 0b111);
 
                     if ((x & 0b111) == 0b111) {
-                        old = epepd->getBwRam()->_streamBytesOutNext();
+                        old = epepd->getBwRam()->_get8MonoPixels(x, y);
                         // derived from good old Kmap
-                        epepd->getRedRam()->_streamBytesInNext(old);
-                        epepd->getBwRam()->_streamBytesInNext((src & (fce | par)) | (old & ~(fce | par)));
+                        epepd->getRedRam()->_set8MonoPixels(x, y, old);
+                        epepd->getBwRam()->_set8MonoPixels(x, y, (src & (fce | par)) | (old & ~(fce | par)));
                         src = 0x00;
                         par = (partial) ? 0x00 : 0xFF;
                         fce = 0x00;
@@ -199,10 +187,6 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
             epepd->updateDisplay();
 
             start = esp_timer_get_time();
-            epepd->getRedRam()->_streamBytesInBegin();
-            epepd->getBwRam()->_streamBytesInBegin();
-            epepd->getBwRam()->_streamBytesOutBegin();
-
             for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
                     src |= (source.getPixel(x, y) & 0x80) >> (x & 0b111);
@@ -212,10 +196,10 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
                         fce |= (force->getPixel(x, y) & 0x80) >> (x & 0b111);
 
                     if ((x & 0b111) == 0b111) {
-                        old = epepd->getBwRam()->_streamBytesOutNext();
+                        old = epepd->getBwRam()->_get8MonoPixels(x, y);
                         // derived from good old Kmap
-                        epepd->getRedRam()->_streamBytesInNext((fce & ~old) | (par & ~fce & src) | (~(par | fce) & old));
-                        epepd->getBwRam()->_streamBytesInNext((src & (fce | par)) | (old & ~(fce | par)));
+                        epepd->getRedRam()->_set8MonoPixels(x, y, (fce & ~old) | (par & ~fce & src) | (~(par | fce) & old));
+                        epepd->getBwRam()->_set8MonoPixels(x, y, (src & (fce | par)) | (old & ~(fce | par)));
                         src = 0x00;
                         par = (partial) ? 0x00 : 0xFF;
                         fce = 0x00;

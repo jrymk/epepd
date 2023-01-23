@@ -1,7 +1,5 @@
 #include "EpBitmap.h"
 
-#define SHOW_HEAP_INFO
-
 constexpr const uint8_t EPBITMAP_PIXEL_MASK[9] = {0b10000000, 0b10000000, 0b11000000, 0b11100000, 0b11110000, 0b11111000, 0b11111100, 0b11111110, 0b11111111};
 
 EpBitmap::EpBitmap(int16_t w, int16_t h, uint8_t bitsPerPixel) :
@@ -86,7 +84,6 @@ void EpBitmap::deallocate() {
     }
     heap_caps_free(blocks);
     allocated = false;
-    return;
 }
 
 __attribute__((always_inline)) uint8_t EpBitmap::getPixel(int16_t x, int16_t y) {
@@ -174,25 +171,7 @@ __attribute__((always_inline)) uint8_t EpBitmap::getBitmapPixel(uint32_t x, uint
     if ((bitIdx & 0b111) + BPP > 8) // cross byte boundary to the next byte
         joined |= ((blocks[((bitIdx >> 3) + 1) >> blockSizeExp])[((bitIdx >> 3) + 1) & ((1 << blockSizeExp) - 1)]);
 
-    joined >>= (8 - (bitIdx & 0b111)); // (bitIdx & 0b111 bits)(bpp bits of data)(...)(2nd byte)
-    joined &= EPBITMAP_PIXEL_MASK[BPP]; // mask
-
-    /// nextBitmap will be deprecated, I don't even care
-    uint8_t next = 0;
-    if (_nextBitmap) {
-        if (!_nextBitmap->allocated) {
-            Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
-            return transparencyColor;
-        }
-        uint16_t nextJoined = (_nextBitmap->blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)];
-        if ((bitIdx >> 3) >= BPP) // not the first byte
-            nextJoined |= ((_nextBitmap->blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)]) << 8;
-        nextJoined >>= 7 - (bitIdx & 0b111);
-        nextJoined &= (1 << BPP) - 1; // mask
-        next = nextJoined << (8 - BPP);
-    }
-
-    return joined | (next >> BPP);
+    return (joined >> (8 - (bitIdx & 0b111))) & EPBITMAP_PIXEL_MASK[BPP];
 }
 
 __attribute__((always_inline)) void EpBitmap::setBitmapPixel(uint32_t x, uint32_t y, uint8_t color) {
@@ -211,20 +190,6 @@ __attribute__((always_inline)) void EpBitmap::setBitmapPixel(uint32_t x, uint32_
         uint8_t* byte2 = &((blocks[((bitIdx >> 3) + 1) >> blockSizeExp])[((bitIdx >> 3) + 1) & ((1 << blockSizeExp) - 1)]);
         *byte2 &= ~(EPBITMAP_PIXEL_MASK[BPP] << (8 - (bitIdx & 0b111)));
         *byte2 |= ((color & EPBITMAP_PIXEL_MASK[BPP]) << (8 - (bitIdx & 0b111)));
-    }
-
-    if (_nextBitmap) {
-        if (!_nextBitmap->allocated) {
-            Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
-            return;
-        }
-        color <<= BPP;
-        (_nextBitmap->blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)] &= ~EPBITMAP_PIXEL_MASK[BPP]; // reset
-        (_nextBitmap->blocks[(bitIdx >> 3) >> blockSizeExp])[(bitIdx >> 3) & ((1 << blockSizeExp) - 1)] |= color << (7 - (bitIdx & 0b111));
-        if ((bitIdx & 0b111) + 1 < BPP) { // cross byte boundary
-            (_nextBitmap->blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] &= ~(EPBITMAP_PIXEL_MASK[BPP] >> 8); // reset
-            (_nextBitmap->blocks[((bitIdx >> 3) - 1) >> blockSizeExp])[((bitIdx >> 3) - 1) & ((1 << blockSizeExp) - 1)] |= color >> ((bitIdx & 0b111) + 1);
-        }
     }
 }
 
@@ -303,46 +268,6 @@ uint8_t** EpBitmap::_getBlocks() {
     return blocks;
 }
 
-void EpBitmap::_streamBytesInBegin(int16_t x, int16_t y) {
-    uint32_t byte = (uint32_t(y) * WIDTH + x) >> 3;
-    streamBytesInCurrentBlockIdx = byte >> blockSizeExp;
-    streamBytesInByteIdxInBlock = byte & ((1 << blockSizeExp) - 1);
-    streamBytesInByte = &(blocks[streamBytesInCurrentBlockIdx])[streamBytesInByteIdxInBlock];
-}
-
-void EpBitmap::_streamBytesInNext(uint8_t byte) {
-    *streamBytesInByte++ = byte;
-    streamBytesInByteIdxInBlock++;
-    if (streamBytesInByteIdxInBlock == blockSize) {
-        streamBytesInCurrentBlockIdx++;
-        streamBytesInByteIdxInBlock = 0;
-        streamBytesInByte = &(blocks[streamBytesInCurrentBlockIdx])[streamBytesInByteIdxInBlock];
-    }
-}
-
-void EpBitmap::_streamBytesOutBegin(int16_t x, int16_t y) {
-    uint32_t byte = (uint32_t(y) * WIDTH + x) >> 3;
-    streamBytesOutCurrentBlockIdx = byte >> blockSizeExp;
-    streamBytesOutByteIdxInBlock = byte & ((1 << blockSizeExp) - 1);
-    streamBytesOutByte = &(blocks[streamBytesOutCurrentBlockIdx])[streamBytesOutByteIdxInBlock];
-}
-
-
-uint8_t EpBitmap::_streamBytesOutNext() {
-    uint8_t ret = *streamBytesOutByte++;
-    streamBytesOutByteIdxInBlock++;
-    if (streamBytesOutByteIdxInBlock == blockSize) {
-        streamBytesOutCurrentBlockIdx++;
-        streamBytesOutByteIdxInBlock = 0;
-        streamBytesOutByte = &(blocks[streamBytesOutCurrentBlockIdx])[streamBytesOutByteIdxInBlock];
-    }
-    return ret;
-}
-
-void EpBitmap::_linkBitmap(EpBitmap* nextBitmap) {
-    _nextBitmap = nextBitmap;
-}
-
 /// TODO: fix
 uint8_t EpBitmap::getLuminance(uint16_t color) {
 #ifdef EPEPD_USE_PERCEIVED_LUMINANCE
@@ -358,6 +283,28 @@ uint8_t EpBitmap::getLuminance(uint16_t color) {
 void EpBitmap::drawPixel(int16_t x, int16_t y, uint16_t color) {
     setPixel(x, y, getLuminance(color));
     gfxUpdatedRegion.include(x, y);
+}
+
+uint8_t EpBitmap::_get8MonoPixels(int16_t x, int16_t y) {
+    uint8_t pixels = getPixel(x, y) & 0b10000000;
+    pixels |= (getPixel(x + 1, y) & 0b10000000) >> 1;
+    pixels |= (getPixel(x + 2, y) & 0b10000000) >> 2;
+    pixels |= (getPixel(x + 3, y) & 0b10000000) >> 3;
+    pixels |= (getPixel(x + 4, y) & 0b10000000) >> 4;
+    pixels |= (getPixel(x + 5, y) & 0b10000000) >> 5;
+    pixels |= (getPixel(x + 6, y) & 0b10000000) >> 6;
+    return (pixels | (getPixel(x + 7, y) & 0b10000000) >> 7);
+}
+
+void EpBitmap::_set8MonoPixels(int16_t x, int16_t y, uint8_t pixels) {
+    setPixel(x, y, (pixels & 0b10000000) ? 0xFF : 0x00);
+    setPixel(x + 1, y, (pixels & 0b10000000) ? 0xFF : 0x00);
+    setPixel(x + 2, y, (pixels & 0b01000000) ? 0xFF : 0x00);
+    setPixel(x + 3, y, (pixels & 0b00100000) ? 0xFF : 0x00);
+    setPixel(x + 4, y, (pixels & 0b00010000) ? 0xFF : 0x00);
+    setPixel(x + 5, y, (pixels & 0b00001000) ? 0xFF : 0x00);
+    setPixel(x + 6, y, (pixels & 0b00000100) ? 0xFF : 0x00);
+    setPixel(x + 7, y, (pixels & 0b00000001) ? 0xFF : 0x00);
 }
 
 __attribute__((always_inline)) std::pair<int16_t, int16_t> EpPlacement::getTargetPos(int16_t x, int16_t y) const {

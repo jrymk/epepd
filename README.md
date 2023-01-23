@@ -132,7 +132,7 @@ windowed update!
 
 and the code change:
 
-```cpp{6,19,20}
+```cpp
 partialDisplay.display(gfxBuffer, placement, EpPartialDisplay::A2, &updateMask, &updateMask, nullptr);
 
 for (int f = 0; f < 20; f++) {
@@ -345,6 +345,11 @@ epd.display();
 
 You want 3 bits per pixel for 8 shades of grey? With `EpBitmap` you can do that. It will also be saved into chunks, so it will fit in the available memory
 spaces. Also, you can just save things in shapes mode, which will barely take up any space.
+
+### EpBitmapMono
+
+This is a variant that is optimized for 1 bit mono bitmaps. It is not necessarily faster than regular EpBitmap with _streamBytes *(these functions now
+deprecated)*, but it is way more friendly to use those functions. It allocates a single 16800 byte chunk of memory though.
 
 ---
 

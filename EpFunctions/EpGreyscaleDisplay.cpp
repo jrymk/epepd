@@ -152,8 +152,6 @@ EpGreyscaleDisplay::EpGreyscaleDisplay(Epepd &epepd) : EpFunction(epepd) {}
 
 void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMode displayMode) {
     uint64_t start = esp_timer_get_time();
-    epepd->getRedRam()->_streamBytesInBegin();
-    epepd->getBwRam()->_streamBytesInBegin();
     uint8_t src0 = 0x00; // for red
     uint8_t src1 = 0x00; // for bw
 
@@ -163,8 +161,8 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMo
             src1 |= ((source->getPixel(x, y) & 0x40) << 1) >> (x & 0b111); // shifting a negative amount is undefined
 
             if ((x & 0b111) == 0b111) {
-                epepd->getRedRam()->_streamBytesInNext(src1);
-                epepd->getBwRam()->_streamBytesInNext(src0); // (keeping bw the display color. bw will be bit 0 of src)
+                epepd->getRedRam()->_set8MonoPixels(x, y, src1);
+                epepd->getBwRam()->_set8MonoPixels(x, y, src0); // (keeping bw the display color. bw will be bit 0 of src)
                 src0 = 0x00;
                 src1 = 0x00;
             }
@@ -185,8 +183,6 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMo
         /// round 2
 
         start = esp_timer_get_time();
-        epepd->getRedRam()->_streamBytesInBegin();
-        epepd->getBwRam()->_streamBytesInBegin();
 
         for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
             for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
@@ -194,8 +190,8 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpGreyscaleDisplay::DisplayMo
                 src1 |= ((source->getPixel(x, y) & 0x10) << 3) >> (x & 0b111); // shifting a negative amount is undefined
 
                 if ((x & 0b111) == 0b111) {
-                    epepd->getRedRam()->_streamBytesInNext(src1);
-                    epepd->getBwRam()->_streamBytesInNext(src0); // (keeping bw the display color. bw will be bit 0 of src)
+                    epepd->getRedRam()->_set8MonoPixels(x, y, src1);
+                    epepd->getBwRam()->_set8MonoPixels(x, y, src0); // (keeping bw the display color. bw will be bit 0 of src)
                     src0 = 0x00;
                     src1 = 0x00;
                 }

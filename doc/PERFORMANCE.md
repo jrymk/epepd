@@ -83,3 +83,57 @@ and after... (meh)
 ```
 
 156321us
+
+BEFORE MONO CHANGE
+
+```
+134400 gfxBuffer.getPixel calls took 77660us, 0.577865us/call
+134400 epepd.getBwRam()->getPixel calls took 77609us, 0.577485us/call
+16800 epepd.getBwRam()->_streamOutBytes calls took 2914us, 0.173750us/call
+16800 epepd.getBwRam()->_streamInBytes calls took 3136us, 0.186667us/call
+134400 gfxBuffer.drawPixel calls took 108143us, 0.804635us/call
+134400 GFXcanvas1.getPixel calls took 55068us, 0.409762us/call
+134400 GFXcanvas1.drawPixel calls took 108526us, 0.807493us/call
+134400 GFXcanvas8.getPixel calls took 41008us, 0.305156us/call
+134400 GFXcanvas8.drawPixel calls took 70175us, 0.522165us/call
+```
+
+```
+[epepd] EpGreyscaleDisplay (round 1) write ram took 151562us
+[epepd] EpGreyscaleDisplay waited 503572us while display updating
+[epepd] Init display took 141us
+[epepd] Write LUT took 132us
+[epepd] Sending two sets of display buffer took 34965us
+[epepd] Display update took 28us
+[epepd] EpGreyscaleDisplay (round 2) write ram took 151285us
+[epepd] Write LUT took 124us
+[epepd] Sending two sets of display buffer took 34958us
+```
+
+11285us -> 9366us
+
+AFTER MONO CHANGE
+
+```
+134400 gfxBuffer.getPixel calls took 70314us, 0.523199us/call
+134400 epepd.getBwRam()->getPixel calls took 48871us, 0.363661us/call
+16800 epepd.getBwRam()->get8MonoPixels calls took 4375us, 0.260655us/call
+16800 epepd.getBwRam()->set8MonoPixels calls took 4145us, 0.246786us/call
+134400 gfxBuffer.drawPixel calls took 96828us, 0.720446us/call
+134400 GFXcanvas1.getPixel calls took 53369us, 0.397128us/call
+134400 GFXcanvas1.drawPixel calls took 104582us, 0.778177us/call
+134400 GFXcanvas8.getPixel calls took 38756us, 0.288400us/call
+134400 GFXcanvas8.drawPixel calls took 65693us, 0.488847us/call
+```
+
+```
+[epepd] EpGreyscaleDisplay (round 1) write ram took 139718us (8% lower!)
+[epepd] EpGreyscaleDisplay waited 524016us while display updating (waited for the same 8%...)
+[epepd] Init display took 137us
+[epepd] Write LUT took 128us
+[epepd] Sending two sets of display buffer took 31371us
+[epepd] Display update took 24us
+[epepd] EpGreyscaleDisplay (round 2) write ram took 139162us
+[epepd] Write LUT took 124us
+[epepd] Sending two sets of display buffer took 31355us
+```

@@ -1,6 +1,8 @@
 #ifndef EPBITMAP_H
 #define EPBITMAP_H
 
+#define SHOW_HEAP_INFO
+
 #include <Arduino.h>
 #include <vector>
 #include <Adafruit_GFX.h>
@@ -122,9 +124,9 @@ public:
 
     // allocate the bitmap memory, split into blocks, blockSize in bytes (you are not going to allocate multiple blocks over 64K on the esp32, so that's the biggest you can do)
     // blockSize must be a power of 2 (4200 will become 4096). I have to do this to get rid of the divides and mods
-    bool allocate(uint32_t blockSize);
+    virtual bool allocate(uint32_t blockSize);
 
-    virtual bool isAllocated() const;
+    bool isAllocated() const;
 
     virtual void deallocate();
 
@@ -144,7 +146,7 @@ public:
 
     uint8_t getPixel(std::pair<int16_t, int16_t> coord) { return getPixel(coord.first, coord.second); }
 
-    virtual void setPixel(int16_t x, int16_t y, uint8_t color);
+    void setPixel(int16_t x, int16_t y, uint8_t color);
 
     virtual uint8_t getBitmapPixel(uint32_t x, uint32_t y);
 
@@ -171,24 +173,14 @@ public:
 
     virtual uint8_t getTransparencyColor();
 
-    virtual /// for pros (for redRam and bwRam) ///
+    /// for pros ///
     uint8_t** _getBlocks();
 
-    virtual // only for linking 2 1BPP bitmaps with the same size together
-    void _linkBitmap(EpBitmap* nextBitmap);
+    virtual uint8_t _get8MonoPixels(int16_t x, int16_t y);
 
-    EpBitmap* _nextBitmap = nullptr; // the remaining bits will be shifted left and sent to the next bitmap
+    virtual void _set8MonoPixels(int16_t x, int16_t y, uint8_t pixels);
 
-    void _streamBytesInBegin(int16_t x = 0, int16_t y = 0);
-
-    void _streamBytesInNext(uint8_t byte);
-
-    void _streamBytesOutBegin(int16_t x = 0, int16_t y = 0);
-
-    // keep count of bytes read yourself, it will certainly crash if you go over!
-    uint8_t _streamBytesOutNext();
-
-private:
+protected:
     int16_t WIDTH, HEIGHT;
     uint8_t BPP;
 
@@ -201,13 +193,6 @@ private:
     uint8_t** blocks;
     uint16_t blockSize; // in bytes
     uint16_t blockSizeExp; // 1 << blockSizeExp = blockSize
-
-    uint16_t streamBytesInCurrentBlockIdx;
-    uint32_t streamBytesInByteIdxInBlock;
-    uint8_t* streamBytesInByte;
-    uint16_t streamBytesOutCurrentBlockIdx;
-    uint32_t streamBytesOutByteIdxInBlock;
-    uint8_t* streamBytesOutByte;
 };
 
 

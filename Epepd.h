@@ -44,6 +44,7 @@
 #include <SPI.h>
 #include <functional>
 #include "EpBitmap.h"
+#include "EpBitmapMono.h"
 #include "EpFunction.h"
 
 class Epepd {
@@ -85,25 +86,19 @@ public:
 
     // to turn off panel voltage generator so the image doesn't fade
     void powerOff();
-
-    // get LUT bitmap (2 bit, redRam + bwRam)
-    // You can call Adafruit_GFX draw commands on this bitmap to draw directly, though the contents may (very well) be
-    // changed after running display EpFunctions (like partialDisplay)
-    // But each buffer is only 33.6KB, you should probably just allocate your own
-    EpBitmap* getDisplayRam();
-
+    
     // get redRam bitmap (1 bit)
-    EpBitmap* getRedRam();
+    EpBitmapMono* getRedRam();
 
     // get bwRam bitmap (1 bit)
-    EpBitmap* getBwRam();
+    EpBitmapMono* getBwRam();
 
 private:
     static const unsigned char lut_GC4[];
 
     // about 16.8KB each
-    EpBitmap redRam; // LUT bit 1, previous (for partial)
-    EpBitmap bwRam;  // LUT bit 0, current (for partial)
+    EpBitmapMono redRam; // LUT bit 1, previous (for partial)
+    EpBitmapMono bwRam;  // LUT bit 0, current (for partial)
 
     bool isPoweredOn = false;  // is clock signal active? (disable voltage generation to avoid screen fade)
     bool isHibernating = true; // hibernating requires hwReset + initDisplay to restore

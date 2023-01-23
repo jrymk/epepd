@@ -25,8 +25,8 @@ const uint8_t Epepd::lut_GC4[] PROGMEM = {
 
 
 Epepd::Epepd(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin) :
-        redRam(EPD_WIDTH, EPD_HEIGHT, 1),
-        bwRam(EPD_WIDTH, EPD_HEIGHT, 1),
+        redRam(EPD_WIDTH, EPD_HEIGHT),
+        bwRam(EPD_WIDTH, EPD_HEIGHT),
         spi(&SPI), // GxEPD2 uses 4Mhz, Waveshare example 2Mhz, we're using 40Mhz! (tbh it's barely faster)
         spiSettings(40000000, MSBFIRST, SPI_MODE0) {
     this->csPin = csPin;
@@ -46,9 +46,8 @@ void Epepd::init() {
     spi->begin();
     redRam.setBitmapShapeBlendMode(EpBitmap::BITMAP_ONLY);
     bwRam.setBitmapShapeBlendMode(EpBitmap::BITMAP_ONLY);
-    redRam.allocate(4096);
-    bwRam.allocate(4096);
-    redRam._linkBitmap(&bwRam); // remaining bits will be sent to bwRam
+    redRam.allocate();
+    bwRam.allocate();
     Serial.printf("[epepd] Display resolution: %d*%d\n", EPD_WIDTH, EPD_HEIGHT);
 }
 
@@ -178,16 +177,16 @@ void Epepd::writeToDisplay() {
     uint32_t size = uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 8;
     writeCommand(0x26);
     writeDataBegin();
-    redRam._streamBytesOutBegin();
+    uint8_t* byte = redRam._getBuffer();
     for (uint32_t b = 0; b < size; b++)
-        writeDataCont(redRam._streamBytesOutNext());
+        writeDataCont(*(byte++));
     writeDataEnd();
 
     writeCommand(0x24);
     writeDataBegin();
-    bwRam._streamBytesOutBegin();
+    byte = bwRam._getBuffer();
     for (uint32_t b = 0; b < size; b++)
-        writeDataCont(bwRam._streamBytesOutNext());
+        writeDataCont(*(byte++));
     writeDataEnd();
 
     Serial.printf("[epepd] Sending two sets of display buffer took %lldus\n", esp_timer_get_time() - start);
@@ -290,18 +289,13 @@ void Epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
 }
 
 
-EpBitmap* Epepd::getDisplayRam() {
-    redRam._linkBitmap(&bwRam);
-    return &redRam;
-}
-
-EpBitmap* Epepd::getRedRam() {
+EpBitmapMono* Epepd::getRedRam() {
     // no need to unpair, just waste slightly more time
 //    redRam._linkBitmap(nullptr);
     return &redRam;
 }
 
-EpBitmap* Epepd::getBwRam() {
+EpBitmapMono* Epepd::getBwRam() {
     return &bwRam;
 }
 
