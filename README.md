@@ -5,6 +5,8 @@ _currently only supports Waveshare 3.7" ePaper HAT_
 
 ## What can it do?
 
+[Functions](https://github.com/jrymk/epepd/tree/main/EpFunctions)
+
 Like... draw stuff in 480*280 hIgH rEsOlUtIoN 4-bit 16 color wIdE cOlOr gAMut on your 4-shades-of-grey-capable ePaper display?
 
 <img src="doc/Suletta.jpg" width="800">
