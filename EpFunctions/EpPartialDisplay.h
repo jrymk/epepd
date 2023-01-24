@@ -13,11 +13,15 @@ public:
 
     enum DisplayMode {
         FIX,         // fix burn in caused by accidents
+        INIT,        // clears the screen
         GC2_FULL,    // fast, high quality, will flash once (not partial display)
         GC2_PARTIAL, // fast, high quality, will flash once for updated pixels in mask, requires two update cycles
         DU2,         // faster, low quality, good for setting the display to all white
         A2,          // fastest, low quality, good for motion
     };
+
+    // clears the display
+    void clear();
 
     /**
      * Displays a bitmap onto the screen
@@ -35,6 +39,7 @@ public:
 
 private:
     static const uint8_t lut_FIX[];
+    static const uint8_t lut_INIT[];
     static const uint8_t lut_GC2[];
     static const uint8_t lut_GC2_PARTIAL_1[];
     static const uint8_t lut_GC2_PARTIAL_2[];

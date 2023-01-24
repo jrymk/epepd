@@ -2,7 +2,7 @@
 
 | | A2 | DU2 | GC2_FULL | GC2_PARTIAL | GC4 | GC16_FAST | GC16 |
 | --: | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| Shades of grey |  2 | 2 | 2 | 2 | 4 | 16 | 16 |
+| Shades of grey | 2 | 2 | 2 | 2 | 4 | 16 | 16 |
 | Speed | 0.54s | 0.96s | 0.79s | 1.40s | 1.34s | 1.45s | 2.58s |
 | Supports partial display | yes | yes | no | yes | no | no | no |
 | Masks | partial, force | partial, force | | partial, force | | | |
@@ -68,9 +68,11 @@ Greyscale clear, 4 shades of grey (full screen update only)
 
 Displays high quality 2 bit greyscale image in one display cycle.
 
-The resulting bwRam follows the general color of the display, so it will somewhat work with other update functions, although clearing over the greyscale image is strongly recommended.
+The resulting bwRam follows the general color of the display, so it will somewhat work with other update functions, although clearing over the greyscale image
+is strongly recommended.
 
-> bwRam generally reflects the actual display contents on the screen. It is used by `EpPartialDisplay` to determine pixels to be updated. It may be used by other functions too.
+> bwRam generally reflects the actual display contents on the screen. It is used by `EpPartialDisplay` to determine pixels to be updated. It may be used by
+> other functions too.
 
 | color | bwRam after display |
 | --: | :-- |
@@ -85,17 +87,23 @@ Greyscale clear, 16 shades of grey (full screen update only)
 
 Displays high quality 4 bit greyscale image in **two** display cycles.
 
-This mode is actually over two times faster than `GC16`, because it does not require the display to reach full black before updating. This mode also "feels" faster, because the display reaches a color close to the final image early in the first cycle. If the best "16 shades" isn't required, for example when showing antialiased text or most bitmaps, then this is a good mode for quickly showing greyscale content. It's almost as fast as `GC4`, although `GC4` does produce a cleaner image.\
+This mode is actually over two times faster than `GC16`, because it does not require the display to reach full black before updating. This mode also "feels"
+faster, because the display reaches a color close to the final image early in the first cycle. If the best "16 shades" isn't required, for example when showing
+antialiased text or most bitmaps, then this is a good mode for quickly showing greyscale content. It's almost as fast as `GC4`, although `GC4` does produce a
+cleaner image.\
 Also the black is not as dark as other greyscale display modes (depends on the temperature I guess)
 
 ### GC16
 
 Greyscale clear, 16 shades of grey (full screen update only)
 
-This mode doesn't have a suffix while `GC16_FAST` does, because the quality of the greyscale image is more in-line with actual 16-shades-of-grey-capable ePaper displays with (at least) 4 sets of RAM and (at least) 16 transition waveform tables. With 2 cycles, we have 8 transition waveform tables (equivalent), which *can* make 16 shades of grey, but we have not much control.\
-This is why mode `GC16` displays high quality (and better colors) 4 bit greyscale image in **three** display cycles, which can longer to update. Also the display will reach full black before displaying content, and that takes quite some time too.
+This mode doesn't have a suffix while `GC16_FAST` does, because the quality of the greyscale image is more in-line with actual 16-shades-of-grey-capable ePaper
+displays with (at least) 4 sets of RAM and (at least) 16 transition waveform tables. With 2 cycles, we have 8 transition waveform tables (equivalent), which
+*can* make 16 shades of grey, but we have not much control.\
+This is why mode `GC16` displays high quality (and better colors) 4 bit greyscale image in **three** display cycles, which can longer to update. Also the
+display will reach full black before displaying content, and that takes quite some time too.
 
-The image produced by this mode looks brighter. 
+The image produced by this mode looks brighter.
 
 # epepd built-in EpBitmap functions
 
@@ -127,9 +135,11 @@ delay(1000);
 
 ## EpSSAA4x
 
-Supersampling Anti-Aliasing, internally allocates a bitmap 4 times bigger (2 times on each edge). Each `Adafruit_GFX` `drawPixel` call draws 4 pixels in a specified pattern. When a pixel color is requested, 4 pixels are read and combined to create the originally saved color.
+Supersampling Anti-Aliasing, internally allocates a bitmap 4 times bigger (2 times on each edge). Each `Adafruit_GFX` `drawPixel` call draws 4 pixels in a
+specified pattern. When a pixel color is requested, 4 pixels are read and combined to create the originally saved color.
 
-Certain functions can write to the internal bitmap to allow "sub-pixel divisions". When a pixel is read back, 4 pixels are combined. This produces an image that is smoother at the edges.
+Certain functions can write to the internal bitmap to allow "sub-pixel divisions". When a pixel is read back, 4 pixels are combined. This produces an image that
+is smoother at the edges.
 
 Text, circles and lines have intermediate colors at the edges to make the pixels less harsh and overall looks better.\
 **These functions are not yet implemented.**
@@ -187,7 +197,8 @@ Output Pixel to Internal Pixels Conversion<br>
 
 ##### Example:
 
-(No anti-aliasing is utilized in the example below. Cicles, lines and text Adafruit_GFX function override is not implemented yet. There is currently no way of writing to the internal bitmap yet)
+(No anti-aliasing is utilized in the example below. Cicles, lines and text Adafruit_GFX function override is not implemented yet. There is currently no way of
+writing to the internal bitmap yet)
 
 ```cpp
 EpSSAA4x gfxBuffer(480, 280, 4);

@@ -141,7 +141,7 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
         Serial.printf("[epepd] No source bitmap provided!\n");
         return;
     }
-    
+
     uint8_t src0 = 0x00; // for red
     uint8_t src1 = 0x00; // for bw
 
@@ -273,7 +273,6 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
         epepd->updateDisplay();
     }
 
-    epepd->initDisplay();
     Serial.printf("[epepd] EpGreyscaleDisplay in total took %lldus\n", esp_timer_get_time() - total);
 //    epepd->powerOff();
 }
