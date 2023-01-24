@@ -1,6 +1,5 @@
 #include "Epepd.h"
 
-#define EPEPD_USE_PERCEIVED_LUMINANCE
 #define EPEPD_BUSY_TIMEOUT 5000000
 
 // default LUT

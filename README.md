@@ -23,14 +23,21 @@ This library is not done, and so does this README. It's a mess, and information 
 
 <img src="doc/16_shades_of_grey_tuned.jpg" width="600">
 
-This is drawn with the `EpGreyscaleDisplay` function with the display mode `GC16`. It uses 3 update cycles to create 64 different "brightening" durations after wiping the screen black. Then from which 16 colors that most represents a greyscale are picked (manually, by eye). It can technically be done in 2 display cycles, but due to the nature of the ePaper chemistry (idk), "brightening" one unit of time from black will create a far bigger brightness difference than the difference between 62 units and 63 units. 
+This is drawn with the `EpGreyscaleDisplay` function with the display mode `GC16`. It uses 3 update cycles to create 64 different "brightening" durations after
+wiping the screen black. Then from which 16 colors that most represents a greyscale are picked (manually, by eye). It can technically be done in 2 display
+cycles, but due to the nature of the ePaper chemistry (idk), "brightening" one unit of time from black will create a far bigger brightness difference than the
+difference between 62 units and 63 units.
 
 ```cpp
 const uint8_t EpGreyscaleDisplay::lut_64_to_16[] = {0, 1, 2, 3, 4, 5, 7, 9, 11, 13, 15, 23, 27, 31, 53, 63};
 ```
 
 This is the lookup table I ended up using. dYou might see why doing in 2 cycles won't work as well as this does.\
-Also, since the black capsules are "barely below white" through this process, after a few display updates, the blacks tend to fade away (not that much though, don't worry, and it is after 40 partial updates). Even though I set VCOM voltage to 0 (so DCVCOM = VSS, so no voltage difference at all), it still does that. Starting from grey and do brightening and darkening at the same time is another option. The video below is done this way in 2 display cycles. But this method does not guarantee strictly increasing brightness, especially that the environment temperature can quite heavily affect the display, I think this is a better option.
+Also, since the black capsules are "barely below white" through this process, after a few display updates, the blacks tend to fade away (not that much though,
+don't worry, and it is after 40 partial updates). Even though I set VCOM voltage to 0 (so DCVCOM = VSS, so no voltage difference at all), it still does that.
+Starting from grey and do brightening and darkening at the same time is another option. The video below is done this way in 2 display cycles. But this method
+does not guarantee strictly increasing brightness, especially that the environment temperature can quite heavily affect the display, I think this is a better
+option.
 
 ### More shades of grey? How about partial display? Same time?
 

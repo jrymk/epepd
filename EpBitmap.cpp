@@ -380,15 +380,19 @@ __attribute__((always_inline)) void EpRegion::include(EpRegion &region, EpPlacem
     include(placement.getTargetPos(region.x + region.w - 1, region.y + region.h - 1));
 }
 
-EpRegion EpRegion::_testAndAlign(EpRegion* userRegion, int16_t w, int16_t h) {
+EpRegion EpRegion::_testAndAlign(EpRegion* userRegion, EpPlacement &placement, int16_t w, int16_t h) {
     if (userRegion == nullptr)
         return EpRegion(0, 0, w, h);
     if (userRegion->w < 0 || userRegion->h < 0)
         return EpRegion(0, 0, 0, 0);
-    int16_t l = userRegion->x;
-    int16_t r = userRegion->x + userRegion->w; // after the right edge
-    int16_t u = userRegion->y;
-    int16_t d = userRegion->y + userRegion->h;
+    int16_t l = placement.getTargetPos(userRegion->x, userRegion->y).first;
+    int16_t r = placement.getTargetPos(userRegion->x + userRegion->w - 1, userRegion->y + userRegion->h - 1).first; // after the right edge
+    int16_t u = placement.getTargetPos(userRegion->x, userRegion->y).second;
+    int16_t d = placement.getTargetPos(userRegion->x + userRegion->w - 1, userRegion->y + userRegion->h - 1).second;
+    if (l > r) std::swap(l, r);
+    if (u > d) std::swap(u, d);
+    r++;
+    d++;
     l = (l < 0 ? 0 : (l >= w ? w - 1 : l)) & ~0b111;
     r = ((r < 0 ? 0 : (r > w ? w : r)) + 7) & ~0b111;
     u = u < 0 ? 0 : (u >= h ? h - 1 : u);
