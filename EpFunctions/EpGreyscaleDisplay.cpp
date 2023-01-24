@@ -137,7 +137,11 @@ EpGreyscaleDisplay::EpGreyscaleDisplay(Epepd &epepd) : EpFunction(epepd) {}
 void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGreyscaleDisplay::DisplayMode displayMode) {
     uint64_t start = esp_timer_get_time();
     uint64_t total = esp_timer_get_time();
-
+    if (!source) {
+        Serial.printf("[epepd] No source bitmap provided!\n");
+        return;
+    }
+    
     uint8_t src0 = 0x00; // for red
     uint8_t src1 = 0x00; // for bw
 

@@ -118,10 +118,13 @@ const unsigned char EpPartialDisplay::lut_A2[] PROGMEM = {
 EpPartialDisplay::EpPartialDisplay(Epepd &epepd) : EpFunction(epepd) {}
 
 /// TODO: prep for next windowed update
-void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force, EpRegion* updateRegion) {
+void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force, EpRegion* updateRegion) {
     uint64_t start = esp_timer_get_time();
     uint64_t total = esp_timer_get_time();
-
+    if (!source) {
+        Serial.printf("[epepd] No source bitmap provided!\n");
+        return;
+    }
     if (updateRegion) // make pixels outside updateRegion not update
         memcpy(epepd->getRedRam()->_getBuffer(), epepd->getBwRam()->_getBuffer(), (uint32_t(epepd->EPD_WIDTH) * epepd->EPD_HEIGHT) >> 3);
 
@@ -147,7 +150,7 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
             for (int16_t y = region.y; y < region.y + region.h; y++) {
                 for (int16_t x = region.x; x < region.x + region.w; x += 8) {
                     for (int16_t dx = 0; dx < 8; dx++) {
-                        src |= (source.getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
+                        src |= (source->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                         if (partial) // TODO: this has potential of reading 8 bits at a time... but it may be misaligned due to placement...
                             par |= (partial->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                         if (force)
@@ -189,7 +192,7 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
 
             for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
-                    src |= (source.getPixel(x, y) & 0x80) >> (x & 0b111);
+                    src |= (source->getPixel(x, y) & 0x80) >> (x & 0b111);
                     if (partial)
                         par |= (partial->getPixel(x, y) & 0x80) >> (x & 0b111);
                     if (force)
@@ -216,7 +219,7 @@ void EpPartialDisplay::display(EpBitmap &source, EpPlacement &placement, Display
             start = esp_timer_get_time();
             for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
-                    src |= (source.getPixel(x, y) & 0x80) >> (x & 0b111);
+                    src |= (source->getPixel(x, y) & 0x80) >> (x & 0b111);
                     if (partial)
                         par |= (partial->getPixel(x, y) & 0x80) >> (x & 0b111);
                     if (force)

@@ -163,6 +163,7 @@ __attribute__((always_inline)) uint8_t EpBitmap::getBitmapPixel(uint32_t x, uint
         Serial.printf("Fatal error: Accessing unallocated EpBitmap!\n");
         return transparencyColor;
     }
+//    Serial.printf("getting normal bitmap %d, %d\n", x, y);
     if (x >= WIDTH || y >= HEIGHT) // use unsigned int to save originX < 0 and y < 0
         return transparencyColor;
     uint32_t bitIdx = (y * WIDTH + x) * BPP; // of the first bit of the pixel

@@ -13,7 +13,7 @@
 #define GFX_LIGHTGREY 0b1010110101010101
 #define GFX_WHITE     0b1111111111111111
 
-#define EPEPD_USE_PERCEIVED_LUMINANCE 1 (doesn't make it exponent/log whatever, just balance out the perception of rgb colors)
+#define EPEPD_USE_PERCEIVED_LUMINANCE 1 // (doesn't make it exponent/log whatever, just balance out the perception of rgb colors)
 
 // Determines the relative position of bitmaps, for feeding into functions and setting EpShape fills
 struct EpPlacement {
@@ -142,16 +142,16 @@ public:
 
     // do we need pixels over 8 bit wide?
     // get the color of a particular pixel, aligned left
-    uint8_t getPixel(int16_t x, int16_t y);
+    virtual uint8_t getPixel(int16_t x, int16_t y);
 
-    uint8_t getPixel(std::pair<int16_t, int16_t> coord) { return getPixel(coord.first, coord.second); }
-
-    void setPixel(int16_t x, int16_t y, uint8_t color);
+    virtual uint8_t getPixel(std::pair<int16_t, int16_t> coord) { return getPixel(coord.first, coord.second); }
 
     /// TODO: repeat bits so colors look good
     virtual uint8_t getBitmapPixel(uint32_t x, uint32_t y);
 
     virtual void setBitmapPixel(uint32_t x, uint32_t y, uint8_t color);
+
+    virtual void setPixel(int16_t x, int16_t y, uint8_t color);
 
     /// SHAPES MODE ///
     // TODO: override fillCircle and fillRect functions and maybe roundedRect for a "more familiar" feel
@@ -160,7 +160,7 @@ public:
     // for simplicity’s sake, you just add shapes according to the operation order
 
     // not efficient, don't add too many shapes please
-    uint16_t getShapePixel(int16_t x, int16_t y);
+    virtual uint16_t getShapePixel(int16_t x, int16_t y);
 
     virtual void clearShapes();
 

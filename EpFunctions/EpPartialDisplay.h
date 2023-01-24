@@ -31,7 +31,7 @@ public:
      *                     This is NOT for setting the partial update area. Pixels outside the region may be scanned (and updated if mask set incorrectly) as well.
      * Refer README.md for descriptions of the display modes
      */
-    void display(EpBitmap &source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial = nullptr, EpBitmap* force = nullptr, EpRegion* updateRegion = nullptr);
+    void display(EpBitmap* source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial = nullptr, EpBitmap* force = nullptr, EpRegion* updateRegion = nullptr);
 
 private:
     static const uint8_t lut_FIX[];

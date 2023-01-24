@@ -85,7 +85,8 @@ Greyscale clear, 16 shades of grey (full screen update only)
 
 Displays high quality 4 bit greyscale image in **two** display cycles.
 
-This mode is actually over two times faster than `GC16`, because it does not require the display to reach full black before updating. This mode also "feels" faster, because the display reaches a color close to the final image early in the first cycle. If the best "16 shades" isn't required, for example when showing antialiased text or most bitmaps, then this is a good mode for quickly showing greyscale content. It's almost as fast as `GC4`, although `GC4` does produce a cleaner image.
+This mode is actually over two times faster than `GC16`, because it does not require the display to reach full black before updating. This mode also "feels" faster, because the display reaches a color close to the final image early in the first cycle. If the best "16 shades" isn't required, for example when showing antialiased text or most bitmaps, then this is a good mode for quickly showing greyscale content. It's almost as fast as `GC4`, although `GC4` does produce a cleaner image.\
+Also the black is not as dark as other greyscale display modes (depends on the temperature I guess)
 
 ### GC16
 
