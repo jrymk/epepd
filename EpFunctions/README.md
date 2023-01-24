@@ -1,4 +1,4 @@
-# epepd built-in functions
+# epepd built-in drawing functions
 
 | | A2 | DU2 | GC2_FULL | GC2_PARTIAL | GC4 | GC16_FAST | GC16 |
 | --: | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
@@ -96,3 +96,105 @@ This mode doesn't have a suffix while `GC16_FAST` does, because the quality of t
 This is why mode `GC16` displays high quality (and better colors) 4 bit greyscale image in **three** display cycles, which can longer to update. Also the display will reach full black before displaying content, and that takes quite some time too.
 
 The image produced by this mode looks brighter. 
+
+# epepd built-in EpBitmap functions
+
+These functions override `EpBitmap` `getPixel` to output pixel data programmatically, instead of simply reading from memory.\
+They act just like `EpBitmap`s, and can be used as inputs for other functions.
+
+## EpIntegerScaling
+
+Scales the image up or down by an integer factor. No smoothing is applied to scale ups, meaning the output will be blocky if scaled up.
+
+Negative scaling factor means scale down.
+
+##### Example:
+
+```cpp
+EpIntegerScaling intScale(&gfxBuffer, 2); // input pixel x=3, y=5 is now equivalent to output rect x=6, y=10, w=2, h=2
+greyscaleDisplay.display(&ssaa, placement, EpGreyscaleDisplay::GC16_FAST);
+delay(1000);
+ssaa.setScale(3); // input pixel x=3, y=5 is now equivalent to output rect x=9, y=15, w=3, h=3
+greyscaleDisplay.display(&ssaa, placement, EpGreyscaleDisplay::GC16_FAST);
+delay(1000);
+ssaa.setScale(-2); // output pixel x=3, y=5 is now the average of input pixels (6, 10), (7, 10), (6, 11), (7, 11)
+greyscaleDisplay.display(&ssaa, placement, EpGreyscaleDisplay::GC16_FAST);
+delay(1000);
+ssaa.setScale(-3); // output pixel x=3, y=5 is now the average of input pixels (9, 15), (10, 15), (11, 15), (9, 16), (10, 16), (11, 16), (9, 17), (10, 17), (11, 17)
+greyscaleDisplay.display(&ssaa, placement, EpGreyscaleDisplay::GC16_FAST);
+delay(1000);
+```
+
+## EpSSAA4x
+
+Supersampling Anti-Aliasing, internally allocates a bitmap 4 times bigger (2 times on each edge). Each `Adafruit_GFX` `drawPixel` call draws 4 pixels in a specified pattern. When a pixel color is requested, 4 pixels are read and combined to create the originally saved color.
+
+Certain functions can write to the internal bitmap to allow "sub-pixel divisions". When a pixel is read back, 4 pixels are combined. This produces an image that is smoother at the edges.
+
+Text, circles and lines have intermediate colors at the edges to make the pixels less harsh and overall looks better.\
+**These functions are not yet implemented.**
+
+| output bpp | allocated bpp | memory increase |
+| --: | --: | --: |
+| 2 | 1 | 2 times |
+| 3 | 2 | 2.67 times |
+| 4 | 2 | 2 times |
+
+<details>
+<code>
+Output Pixel to Internal Pixels Conversion<br>
+[output color in dec] output color in bin <-conversion direction-> top left pixel, top right pixel, bottom left pixel, bottom right pixel [sum of 4 pixels]<br>
+2 bits per output pixel<br>
+[0] 00 <-> 0 0 0 0 [0]<br>
+[1] 01 <-> 0 0 0 1 [1]<br>
+[2] 10 <-> 0 0 1 1 [2]<br>
+[3] 11 <-- 0 1 1 1 [3]<br>
+[3] 11 <-> 1 1 1 1 [4]<br>
+3 bits per output pixel<br>
+[0] 000 <-> 00 00 00 00 [0]<br>
+[1] 001 <-- 00 00 00 01 [1]<br>
+[1] 001 <-> 00 00 01 01 [2]<br>
+[2] 010 <-- 00 01 01 01 [3]<br>
+[2] 010 <-> 01 01 01 01 [4]<br>
+[3] 011 <-- 01 01 01 10 [5]<br>
+[3] 011 <-> 01 01 10 10 [6]<br>
+[4] 100 <-> 01 10 10 10 [7]<br>
+[5] 101 <-> 10 10 10 10 [8]<br>
+[6] 110 <-- 10 10 10 11 [9]<br>
+[6] 110 <-> 10 10 11 11 [10]<br>
+[7] 111 <-- 10 11 11 11 [11]<br>
+[7] 111 <-> 11 11 11 11 [12]<br>
+4 bits per output pixel<br>
+(!): ordered pattern needed to differentiate<br>
+[0] 0000 <-> 00 00 00 00 [0]<br>
+[1] 0001 <-> 00 00 00 01 [1]<br>
+[2] 0010 <-> 00 00 01 01 [2]<br>
+[3] 0011 <-> 00 01 01 01 [3] (!)<br>
+[4] 0100 --> 01 00 01 01 [3] (!)<br>
+[5] 0101 <-> 01 01 01 01 [4]<br>
+[6] 0110 <-> 01 01 01 10 [5]<br>
+[7] 0111 <-> 01 01 10 10 [6]<br>
+[8] 1000 <-> 01 10 10 10 [7] (!)<br>
+[9] 1001 --> 10 01 10 10 [7] (!)<br>
+[10] 1010 <-> 10 10 10 10 [8]<br>
+[11] 1011 <-> 10 10 10 11 [9]<br>
+[12] 1100 <-> 10 10 11 11 [10]<br>
+[13] 1101 <-> 10 11 11 11 [11] (!)<br>
+[14] 1110 --> 11 10 11 11 [11] (!)<br>
+[15] 1111 <-> 11 11 11 11 [12]
+</code>
+</details>
+
+##### Example:
+
+(No anti-aliasing is utilized in the example below. Cicles, lines and text Adafruit_GFX function override is not implemented yet. There is currently no way of writing to the internal bitmap yet)
+
+```cpp
+EpSSAA4x gfxBuffer(480, 280, 4);
+EpPlacement placement(279, 0, 3);
+EpGreyscaleDisplay greyscaleDisplay(epd);
+gfxBuffer.allocate(4096); // allocated a 960*560, 2BPP bitmap
+
+gfxBuffer.drawRGBBitmap(0, 0, miorinesan, 480, 280);
+greyscaleDisplay.display(&gfxBuffer, placement, EpGreyscaleDisplay::GC16_FAST);
+```
