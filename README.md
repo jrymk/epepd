@@ -72,7 +72,7 @@ https://user-images.githubusercontent.com/39593345/213897907-6412e682-08c0-4cbb-
 }
 delay(1000);
 { /// draw overlay menu with partial display
-    // create a mask for partial display
+    // create a partialUpdateMask for partial display
     EpBitmapFast updateMask(280, 480, 1);
     updateMask.setBitmapShapeBlendMode(EpBitmapFast::SHAPES_ONLY); // use shapes mode to save memory space instead of bitmap
     updateMask.setRectangle(10, 40, 200, 400, 0xFF, EpShape::ADD);
@@ -100,7 +100,7 @@ delay(1000);
             gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
             gfxBuffer.print(str[i]);
         }
-        // parameters: source image, display mode (A2 for animation), partial display mask, force update mask (first draw will be force update)
+        // parameters: source image, display mode (A2 for animation), partial display partialUpdateMask, force update partialUpdateMask (first draw will be force update)
         partialDisplay.display(&gfxBuffer, EpPartialDisplay::A2, &updateMask, (f == 0) ? &updateMask : nullptr);
     }
 }

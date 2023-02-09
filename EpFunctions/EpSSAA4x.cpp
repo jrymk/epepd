@@ -69,99 +69,99 @@ uint8_t EpSSAA4x::getPixel(int16_t x, int16_t y) {
         return pgm_read_byte(lut_3bpp_4_to_1 + (a >> 6) + (b >> 6) + (c >> 6) + (d >> 6)) << 5;
     if (outputBpp == 2)
         return pgm_read_byte(lut_2bpp_4_to_1 + (a >> 7) + (b >> 7) + (c >> 7) + (d >> 7)) << 6;
-    return EpBitmap::getTransparencyColor();
+//    return EpBitmap::getTransparencyColor();
 }
 
-uint8_t EpSSAA4x::getBitmapPixel(uint32_t x, uint32_t y) {
-    uint16_t a = EpBitmap::getBitmapPixel(2 * x, 2 * y);
-    uint16_t b = EpBitmap::getBitmapPixel(2 * x + 1, 2 * y);
-    uint16_t c = EpBitmap::getBitmapPixel(2 * x, 2 * y + 1);
-    uint16_t d = EpBitmap::getBitmapPixel(2 * x + 1, 2 * y + 1);
-    if (outputBpp == 4) {
-        uint8_t color = pgm_read_byte(lut_4bpp_4_to_1 + (a >> 6) + (b >> 6) + (c >> 6) + (d >> 6)) << 4;
-        if (b < a && (color == 3 || color == 8 || color == 13))
-            color += 0b00010000;
-        return color;
-    }
-    if (outputBpp == 3)
-        return pgm_read_byte(lut_3bpp_4_to_1 + (a >> 6) + (b >> 6) + (c >> 6) + (d >> 6)) << 5;
-    if (outputBpp == 2)
-        return pgm_read_byte(lut_2bpp_4_to_1 + (a >> 7) + (b >> 7) + (c >> 7) + (d >> 7)) << 6;
-    return EpBitmap::getTransparencyColor();
-}
-
-uint16_t EpSSAA4x::getShapePixel(int16_t x, int16_t y) {
-    uint16_t a = EpBitmap::getShapePixel(2 * x, 2 * y);
-    uint16_t b = EpBitmap::getShapePixel(2 * x + 1, 2 * y);
-    uint16_t c = EpBitmap::getShapePixel(2 * x, 2 * y + 1);
-    uint16_t d = EpBitmap::getShapePixel(2 * x + 1, 2 * y + 1);
-    return (a + b + c + d + 2) / 4;
-}
+//uint8_t EpSSAA4x::getBitmapPixel(uint32_t x, uint32_t y) {
+//    uint16_t a = EpBitmap::getBitmapPixel(2 * x, 2 * y);
+//    uint16_t b = EpBitmap::getBitmapPixel(2 * x + 1, 2 * y);
+//    uint16_t c = EpBitmap::getBitmapPixel(2 * x, 2 * y + 1);
+//    uint16_t d = EpBitmap::getBitmapPixel(2 * x + 1, 2 * y + 1);
+//    if (outputBpp == 4) {
+//        uint8_t color = pgm_read_byte(lut_4bpp_4_to_1 + (a >> 6) + (b >> 6) + (c >> 6) + (d >> 6)) << 4;
+//        if (b < a && (color == 3 || color == 8 || color == 13))
+//            color += 0b00010000;
+//        return color;
+//    }
+//    if (outputBpp == 3)
+//        return pgm_read_byte(lut_3bpp_4_to_1 + (a >> 6) + (b >> 6) + (c >> 6) + (d >> 6)) << 5;
+//    if (outputBpp == 2)
+//        return pgm_read_byte(lut_2bpp_4_to_1 + (a >> 7) + (b >> 7) + (c >> 7) + (d >> 7)) << 6;
+//    return EpBitmap::getTransparencyColor();
+//}
+//
+//uint16_t EpSSAA4x::getShapePixel(int16_t x, int16_t y) {
+//    uint16_t a = EpBitmap::getShapePixel(2 * x, 2 * y);
+//    uint16_t b = EpBitmap::getShapePixel(2 * x + 1, 2 * y);
+//    uint16_t c = EpBitmap::getShapePixel(2 * x, 2 * y + 1);
+//    uint16_t d = EpBitmap::getShapePixel(2 * x + 1, 2 * y + 1);
+//    return (a + b + c + d + 2) / 4;
+//}
 
 void EpSSAA4x::setPixel(int16_t x, int16_t y, uint8_t color) {
-    uint16_t total;
-    if (outputBpp == 4 || outputBpp == 3) {
-        total = pgm_read_byte(
-                (outputBpp == 4)
-                ? (lut_4bpp_1_to_4 + (color >> 4))
-                : (lut_3bpp_1_to_4 + (color >> 5)));
-
-        if (outputBpp == 4 && ((color & 0b11110000) == 0b01000000 || (color & 0b11110000) == 0b10010000 || (color & 0b11110000) == 0b11100000)) {
-            EpBitmap::setBitmapPixel(2 * x, 2 * y, (total / 4 + 1) << 6); // a
-            total -= total / 4 + 1;
-        }
-        else {
-            EpBitmap::setBitmapPixel(2 * x, 2 * y, (total / 4) << 6); // a
-            total -= total / 4;
-        }
-        EpBitmap::setBitmapPixel(2 * x + 1, 2 * y, (total / 3) << 6); // b
-        total -= total / 3;
-
-        EpBitmap::setBitmapPixel(2 * x, 2 * y + 1, (total / 2) << 6); // c
-        total -= total / 2;
-
-        EpBitmap::setBitmapPixel(2 * x + 1, 2 * y + 1, total << 6); // d
-    }
-    if (outputBpp == 2) {
-        total = pgm_read_byte(lut_2bpp_1_to_4 + (color >> 6));
-        EpBitmap::setBitmapPixel(2 * x + 1, 2 * y + 1, (total / 4) << 7);
-        total -= total / 4;
-        EpBitmap::setBitmapPixel(2 * x, 2 * y, (total / 3) << 7);
-        total -= total / 3;
-        EpBitmap::setBitmapPixel(2 * x + 1, 2 * y, (total / 2) << 7);
-        total -= total / 2;
-        EpBitmap::setBitmapPixel(2 * x, 2 * y + 1, total << 7);
-    }
+//    uint16_t total;
+//    if (outputBpp == 4 || outputBpp == 3) {
+//        total = pgm_read_byte(
+//                (outputBpp == 4)
+//                ? (lut_4bpp_1_to_4 + (color >> 4))
+//                : (lut_3bpp_1_to_4 + (color >> 5)));
+//
+//        if (outputBpp == 4 && ((color & 0b11110000) == 0b01000000 || (color & 0b11110000) == 0b10010000 || (color & 0b11110000) == 0b11100000)) {
+//            EpBitmap::setBitmapPixel(2 * x, 2 * y, (total / 4 + 1) << 6); // a
+//            total -= total / 4 + 1;
+//        }
+//        else {
+//            EpBitmap::setBitmapPixel(2 * x, 2 * y, (total / 4) << 6); // a
+//            total -= total / 4;
+//        }
+//        EpBitmap::setBitmapPixel(2 * x + 1, 2 * y, (total / 3) << 6); // b
+//        total -= total / 3;
+//
+//        EpBitmap::setBitmapPixel(2 * x, 2 * y + 1, (total / 2) << 6); // c
+//        total -= total / 2;
+//
+//        EpBitmap::setBitmapPixel(2 * x + 1, 2 * y + 1, total << 6); // d
+//    }
+//    if (outputBpp == 2) {
+//        total = pgm_read_byte(lut_2bpp_1_to_4 + (color >> 6));
+//        EpBitmap::setBitmapPixel(2 * x + 1, 2 * y + 1, (total / 4) << 7);
+//        total -= total / 4;
+//        EpBitmap::setBitmapPixel(2 * x, 2 * y, (total / 3) << 7);
+//        total -= total / 3;
+//        EpBitmap::setBitmapPixel(2 * x + 1, 2 * y, (total / 2) << 7);
+//        total -= total / 2;
+//        EpBitmap::setBitmapPixel(2 * x, 2 * y + 1, total << 7);
+//    }
 }
 
 uint8_t EpSSAA4x::getInternalPixel(int16_t x, int16_t y) {
-    if (blendMode == BITMAP_ONLY)
-        return EpBitmap::getBitmapPixel(x, y);
-    if (blendMode == SHAPES_ONLY) {
-        uint16_t shapesColor = EpBitmap::getShapePixel(x, y);
-        return (shapesColor == 0xFFFF) ? transparencyColor : shapesColor;
-    }
-
-    uint8_t bitmapColor;
-    uint16_t shapesColor;
-    ///// takes about 60ms per typical usage update
-    shapesColor = EpBitmap::getShapePixel(x, y);
-    ///// takes about 60ms per typical usage update
-    bitmapColor = EpBitmap::getBitmapPixel(x, y);
-
-    switch (blendMode) {
-        case BITMAP_ADD_SHAPES:
-            return (shapesColor == 0xFFFF) ? bitmapColor : shapesColor;
-        case BITMAP_SUBTRACT_SHAPES:
-            return (shapesColor == 0xFFFF) ? bitmapColor : transparencyColor;
-        case BITMAP_INTERSECT_SHAPES:
-            return (shapesColor == 0xFFFF) ? transparencyColor : bitmapColor;
-        case SHAPES_ADD_BITMAP:
-            return (bitmapColor == transparencyColor) ? ((shapesColor == 0xFFFF) ? transparencyColor : shapesColor) : bitmapColor;
-        case SHAPES_SUBTRACT_BITMAP:
-            return (bitmapColor == transparencyColor) ? ((shapesColor == 0xFFFF) ? transparencyColor : shapesColor) : transparencyColor;
-        case SHAPES_INTERSECT_BITMAP:
-            return (bitmapColor == transparencyColor) ? transparencyColor : ((shapesColor == 0xFFFF) ? transparencyColor : shapesColor);
-    }
+//    if (blendMode == BITMAP_ONLY)
+//        return EpBitmap::getBitmapPixel(x, y);
+//    if (blendMode == SHAPES_ONLY) {
+//        uint16_t shapesColor = EpBitmap::getShapePixel(x, y);
+//        return (shapesColor == 0xFFFF) ? transparencyColor : shapesColor;
+//    }
+//
+//    uint8_t bitmapColor;
+//    uint16_t shapesColor;
+//    ///// takes about 60ms per typical usage update
+//    shapesColor = EpBitmap::getShapePixel(x, y);
+//    ///// takes about 60ms per typical usage update
+//    bitmapColor = EpBitmap::getBitmapPixel(x, y);
+//
+//    switch (blendMode) {
+//        case BITMAP_ADD_SHAPES:
+//            return (shapesColor == 0xFFFF) ? bitmapColor : shapesColor;
+//        case BITMAP_SUBTRACT_SHAPES:
+//            return (shapesColor == 0xFFFF) ? bitmapColor : transparencyColor;
+//        case BITMAP_INTERSECT_SHAPES:
+//            return (shapesColor == 0xFFFF) ? transparencyColor : bitmapColor;
+//        case SHAPES_ADD_BITMAP:
+//            return (bitmapColor == transparencyColor) ? ((shapesColor == 0xFFFF) ? transparencyColor : shapesColor) : bitmapColor;
+//        case SHAPES_SUBTRACT_BITMAP:
+//            return (bitmapColor == transparencyColor) ? ((shapesColor == 0xFFFF) ? transparencyColor : shapesColor) : transparencyColor;
+//        case SHAPES_INTERSECT_BITMAP:
+//            return (bitmapColor == transparencyColor) ? transparencyColor : ((shapesColor == 0xFFFF) ? transparencyColor : shapesColor);
+//    }
 }
 

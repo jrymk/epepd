@@ -35,8 +35,8 @@ const uint8_t EpGreyscaleDisplay::lut_GC16_FAST_1[] PROGMEM = {
         /* 01xx */ 0b00000110, 0b10000100, 0b00000100, 0, 0, 0, 0, 0, 0, 0, // dark grey has final bw = 0, better reflects the display color
         /* 11xx */ 0b00000110, 0b10000100, 0b00101000, 0, 0, 0, 0, 0, 0, 0, /* VCOM */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         /* GROUP 1 */ 0, 0, 15, 15, /* REPEAT */ 1, // clean
-        /* GROUP 2 */ 10, 1, 11, 1, /* REPEAT */ 0, // set mid-tone (darken) (increase the third number if too light)
-        /* GROUP 3 */ 24, 5, 3, 1, /* REPEAT */ 0, // brighten/darken by bits 0 and 1
+        /* GROUP 2 */ 10, 1, 10, 1, /* REPEAT */ 0, // set mid-tone (darken) (increase the third number if too light)
+        /* GROUP 3 */ 24, 9, 3, 1, /* REPEAT */ 0, // brighten/darken by bits 0 and 1
         /* GROUP 4 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 5 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 6 */ 0, 0, 0, 0, /* REPEAT */ 0,
@@ -134,7 +134,7 @@ const uint8_t EpGreyscaleDisplay::lut_64_to_16[] = {
 
 EpGreyscaleDisplay::EpGreyscaleDisplay(Epepd &epepd) : EpFunction(epepd) {}
 
-void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGreyscaleDisplay::DisplayMode displayMode) {
+void EpGreyscaleDisplay::display(EpBitmap *source, EpPlacement &placement, EpGreyscaleDisplay::DisplayMode displayMode) {
     uint64_t start = esp_timer_get_time();
     uint64_t total = esp_timer_get_time();
     if (!source) {
@@ -145,6 +145,9 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
     uint8_t src0 = 0x00; // for red
     uint8_t src1 = 0x00; // for bw
 
+    auto redByte = (uint8_t *) epepd->getRedRam()->bitmap;
+    auto bwByte = (uint8_t *) epepd->getBwRam()->bitmap;
+
     if (displayMode == GC4 || displayMode == GC16_FAST) {
         for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
             for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
@@ -152,8 +155,8 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
                 src1 |= ((source->getPixel(placement.getSourcePos(x, y)) & 0x40) << 1) >> (x & 0b111); // shifting a negative amount is undefined
 
                 if ((x & 0b111) == 0b111) {
-                    epepd->getRedRam()->_set8MonoPixels(x, y, src1);
-                    epepd->getBwRam()->_set8MonoPixels(x, y, src0);
+                    *(redByte++) = src1;
+                    *(bwByte++) = src0;
                     src0 = 0x00;
                     src1 = 0x00;
                 }
@@ -172,8 +175,9 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
 
         if (displayMode == GC16_FAST) {
             /// round 2
-
             start = esp_timer_get_time();
+            redByte = (uint8_t *) epepd->getRedRam()->bitmap;
+            bwByte = (uint8_t *) epepd->getBwRam()->bitmap;
 
             for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
                 for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
@@ -181,8 +185,8 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
                     src1 |= ((source->getPixel(placement.getSourcePos(x, y)) & 0x10) << 3) >> (x & 0b111); // shifting a negative amount is undefined
 
                     if ((x & 0b111) == 0b111) {
-                        epepd->getRedRam()->_set8MonoPixels(x, y, src1);
-                        epepd->getBwRam()->_set8MonoPixels(x, y, src0);
+                        *(redByte++) = src1;
+                        *(bwByte++) = src0;
                         src0 = 0x00;
                         src1 = 0x00;
                     }
@@ -208,8 +212,8 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
                 src1 |= ((mapped << 1) & 0x80) >> (x & 0b111);
 
                 if ((x & 0b111) == 0b111) {
-                    epepd->getRedRam()->_set8MonoPixels(x, y, src1);
-                    epepd->getBwRam()->_set8MonoPixels(x, y, src0);
+                    *(redByte++) = src1;
+                    *(bwByte++) = src0;
                     src0 = 0x00;
                     src1 = 0x00;
                 }
@@ -223,6 +227,9 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
         epepd->updateDisplay();
 
         start = esp_timer_get_time();
+        redByte = (uint8_t *) epepd->getRedRam()->bitmap;
+        bwByte = (uint8_t *) epepd->getBwRam()->bitmap;
+
         for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
             for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
 #ifdef EPGREYSCALE_ENABLE_GC16_MAPPING
@@ -234,8 +241,8 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
                 src1 |= ((mapped << 3) & 0x80) >> (x & 0b111);
 
                 if ((x & 0b111) == 0b111) {
-                    epepd->getRedRam()->_set8MonoPixels(x, y, src1);
-                    epepd->getBwRam()->_set8MonoPixels(x, y, src0);
+                    *(redByte++) = src1;
+                    *(bwByte++) = src0;
                     src0 = 0x00;
                     src1 = 0x00;
                 }
@@ -248,6 +255,9 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
         epepd->updateDisplay();
 
         start = esp_timer_get_time();
+        redByte = (uint8_t *) epepd->getRedRam()->bitmap;
+        bwByte = (uint8_t *) epepd->getBwRam()->bitmap;
+
         for (int16_t y = 0; y < epepd->EPD_HEIGHT; y++) {
             for (int16_t x = 0; x < epepd->EPD_WIDTH; x++) {
 #ifdef EPGREYSCALE_ENABLE_GC16_MAPPING
@@ -259,8 +269,8 @@ void EpGreyscaleDisplay::display(EpBitmap* source, EpPlacement &placement, EpGre
                 src1 |= ((mapped << 5) & 0x80) >> (x & 0b111);
 
                 if ((x & 0b111) == 0b111) {
-                    epepd->getRedRam()->_set8MonoPixels(x, y, src1);
-                    epepd->getBwRam()->_set8MonoPixels(x, y, src0);
+                    *(redByte++) = src1;
+                    *(bwByte++) = src0;
                     src0 = 0x00;
                     src1 = 0x00;
                 }

@@ -20,7 +20,7 @@ Animation, 2 shades of grey
 Only supports 1 bit of greyscale, it is the fastest update mode, with no flashes. The quality is the worst too, with quite some ghosting.\
 Should only be used during animations.
 
-Supports masked partial display (select a mask, only pixels that are bright in the mask will be updated)
+Supports masked partial display (select a partialUpdateMask, only pixels that are bright in the partialUpdateMask will be updated)
 
 ### DU2
 
@@ -28,7 +28,7 @@ Direct update, 2 shades of grey
 
 Support from any display state to black or white. Useful to quickly wipe the screen.
 
-Supports masked partial display (select a mask, only pixels that are bright in the mask will be updated)
+Supports masked partial display (select a partialUpdateMask, only pixels that are bright in the partialUpdateMask will be updated)
 
 ### GC2_FULL
 
@@ -45,9 +45,10 @@ Greyscale clear, 2 shades of grey, supports partial update
 Requires two screen update cycles to achieve, this is a display mode with actual "logic" which makes `epepd` special.\
 At the cost of time, it allows you to use greyscale clear `GC2` only on certain pixels.
 
-Supports masked partial display (select a mask, only pixels that are bright in the mask will be updated)\
-Also supports force update mask (select a mask, pixels that are bright will be refreshed regardless of the previous image)\
-In fact, all partial-update-capable display modes above supports force update mask, but it is less useful there. (already black pixels may become even darker,
+Supports masked partial display (select a partialUpdateMask, only pixels that are bright in the partialUpdateMask will be updated)\
+Also supports force update partialUpdateMask (select a partialUpdateMask, pixels that are bright will be refreshed regardless of the previous image)\
+In fact, all partial-update-capable display modes above supports force update partialUpdateMask, but it is less useful there. (already black pixels may become
+even darker,
 making both the old and new image visible, new image being darker)
 
 ### Transition in and out of A2
@@ -119,16 +120,16 @@ Negative scaling factor means scale down.
 ##### Example:
 
 ```cpp
-EpIntegerScaling intScale(&gfxBuffer, 2); // input pixel x=3, y=5 is now equivalent to output rect x=6, y=10, w=2, h=2
+EpIntegerScaling intScale(&gfxBuffer, 2); // input pixel fmt=3, y=5 is now equivalent to output rect fmt=6, y=10, w=2, h=2
 greyscaleDisplay.display(&ssaa, placement, EpGreyscaleDisplay::GC16_FAST);
 delay(1000);
-ssaa.setScale(3); // input pixel x=3, y=5 is now equivalent to output rect x=9, y=15, w=3, h=3
+ssaa.setScale(3); // input pixel fmt=3, y=5 is now equivalent to output rect fmt=9, y=15, w=3, h=3
 greyscaleDisplay.display(&ssaa, placement, EpGreyscaleDisplay::GC16_FAST);
 delay(1000);
-ssaa.setScale(-2); // output pixel x=3, y=5 is now the average of input pixels (6, 10), (7, 10), (6, 11), (7, 11)
+ssaa.setScale(-2); // output pixel fmt=3, y=5 is now the average of input pixels (6, 10), (7, 10), (6, 11), (7, 11)
 greyscaleDisplay.display(&ssaa, placement, EpGreyscaleDisplay::GC16_FAST);
 delay(1000);
-ssaa.setScale(-3); // output pixel x=3, y=5 is now the average of input pixels (9, 15), (10, 15), (11, 15), (9, 16), (10, 16), (11, 16), (9, 17), (10, 17), (11, 17)
+ssaa.setScale(-3); // output pixel fmt=3, y=5 is now the average of input pixels (9, 15), (10, 15), (11, 15), (9, 16), (10, 16), (11, 16), (9, 17), (10, 17), (11, 17)
 greyscaleDisplay.display(&ssaa, placement, EpGreyscaleDisplay::GC16_FAST);
 delay(1000);
 ```

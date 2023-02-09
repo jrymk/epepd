@@ -1,9 +1,9 @@
 #include "EpIntegerScaling.h"
 
-EpIntegerScaling::EpIntegerScaling(EpBitmap* source, int8_t scale) :
+EpIntegerScaling::EpIntegerScaling(EpBitmap *source, int8_t scale) :
         EpBitmap(
-                (scale >= 0 ? source->width() * scale : source->width() / (-scale)),
-                (scale >= 0 ? source->height() * scale : source->height() / (-scale)),
+                (scale >= 0 ? source->width * scale : source->width / (-scale)),
+                (scale >= 0 ? source->height * scale : source->height / (-scale)),
                 8), // bpp for the base EpBitmap doesn't matter
         src(source),
         scale(scale) {}
@@ -24,7 +24,7 @@ uint8_t EpIntegerScaling::getPixel(int16_t x, int16_t y) {
     return (sum + (scale * scale / 2)) / (scale * scale); // rounding
 }
 
-void EpIntegerScaling::setSourceBitmap(EpBitmap* source) {
+void EpIntegerScaling::setSourceBitmap(EpBitmap *source) {
     src = source;
 }
 

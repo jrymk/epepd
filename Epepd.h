@@ -44,7 +44,6 @@
 #include <SPI.h>
 #include <functional>
 #include "EpBitmap.h"
-#include "EpBitmapMono.h"
 #include "EpFunction.h"
 
 struct EpDisplaySettings {
@@ -65,7 +64,7 @@ public:
     // initialize display settings after hibernation
     void initDisplay();
 
-    void writeLUT(const uint8_t* data);
+    void writeLUT(const uint8_t *data);
 
     enum BorderStyle {
         BORDER_HI_Z,
@@ -92,24 +91,25 @@ public:
     void powerOff();
 
     // get redRam bitmap (1 bit)
-    EpBitmapMono* getRedRam();
+    EpEpdRam *getRedRam();
 
     // get bwRam bitmap (1 bit)
-    EpBitmapMono* getBwRam();
+    EpEpdRam *getBwRam();
 
 private:
     static const unsigned char lut_GC4[];
-
+    BorderStyle borderStyle = BORDER_HI_Z;
+    
     // about 16.8KB each
-    EpBitmapMono redRam; // LUT bit 1, previous (for partial)
-    EpBitmapMono bwRam;  // LUT bit 0, current (for partial)
+    EpEpdRam redRam; // LUT bit 1, previous (for partial)
+    EpEpdRam bwRam;  // LUT bit 0, current (for partial)
 
     bool isPoweredOn = false;  // is clock signal active? (disable voltage generation to avoid screen fade)
     bool isHibernating = true; // hibernating requires hwReset + initDisplay to restore
     bool waitingForUpdateCompletion = false;
 
     int16_t csPin, dcPin, rstPin, busyPin;
-    SPIClass* spi;
+    SPIClass *spi;
     SPISettings spiSettings;
 
     struct TransitionResult {

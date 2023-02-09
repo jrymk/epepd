@@ -26,7 +26,7 @@
 134400 GFXcanvas8.drawPixel calls took 70207us, 0.522381us/call
 ```
 
-Bitmap slow
+Image slow
 
 ```
 134400 gfxBuffer.getPixel calls took 100809us, 0.750097us/call

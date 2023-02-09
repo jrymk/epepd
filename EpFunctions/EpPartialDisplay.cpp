@@ -117,11 +117,28 @@ const unsigned char EpPartialDisplay::lut_DU2[] PROGMEM = {
 
 const unsigned char EpPartialDisplay::lut_A2[] PROGMEM = {
         // 00: VCOM, 01: 15V, 11: 5V, 10: -15V
+//        /* BLACK     */ 0b00101010, 0b00000110, 0b00010101, 0, 0, 0, 0, 0, 0, 0,
+//        /* LIGHTGREY */ 0b00100000, 0b00000110, 0b00010000, 0, 0, 0, 0, 0, 0, 0, // light grey has final bw = 1, better reflects the display color
+//        /* DARK GREY */ 0b00101000, 0b00000110, 0b00010100, 0, 0, 0, 0, 0, 0, 0, // dark grey has final bw = 0, better reflects the display color
+//        /* WHITE     */ 0b00010100, 0b00000110, 0b00101000, 0, 0, 0, 0, 0, 0, 0, /* VCOM */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//        /* GROUP 1 */ 0, 5, 12, 18, /* REPEAT */ 0,
+//        /* GROUP 2 */ 0, 0, 18, 18, /* REPEAT */ 1,
+//        /* GROUP 3 */ 0, 5, 12, 40, /* REPEAT */ 0,
+//        /* GROUP 4 */ 0, 0, 0, 0, /* REPEAT */ 0,
+//        /* GROUP 5 */ 0, 0, 0, 0, /* REPEAT */ 0,
+//        /* GROUP 6 */ 0, 0, 0, 0, /* REPEAT */ 0,
+//        /* GROUP 7 */ 0, 0, 0, 0, /* REPEAT */ 0,
+//        /* GROUP 8 */ 0, 0, 0, 0, /* REPEAT */ 0,
+//        /* GROUP 9 */ 0, 0, 0, 0, /* REPEAT */ 0,
+//        /* GROUP10 */ 0, 0, 0, 0, /* REPEAT */ 0,
+//        /* FRAMERATE */ 0x88, 0x88, 0x88, 0x88, 0x88
+
+        // 00: VCOM, 01: 15V, 11: 5V, 10: -15V
         /* KEEP BLACK */ 0b00000000, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         /* TO WHITE   */ 0b00001000, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         /* TO BLACK   */ 0b00000100, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         /* KEEP WHITE */ 0b00000000, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* VCOM */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        /* GROUP 1 */ 0, 0, 8, 1, /* REPEAT */ 2, // TODO: one long pull or multiple small pulls better?
+        /* GROUP 1 */ 0, 0, 12, 1, /* REPEAT */ 2, // TODO: one long pull or multiple small pulls better?
         /* GROUP 2 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 3 */ 0, 0, 0, 0, /* REPEAT */ 0,
         /* GROUP 4 */ 0, 0, 0, 0, /* REPEAT */ 0,
@@ -137,7 +154,7 @@ const unsigned char EpPartialDisplay::lut_A2[] PROGMEM = {
 EpPartialDisplay::EpPartialDisplay(Epepd &epepd) : EpFunction(epepd) {}
 
 /// TODO: prep for next windowed update
-void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, DisplayMode displayMode, EpBitmap* partial, EpBitmap* force, EpRegion* updateRegion) {
+void EpPartialDisplay::display(EpBitmap *source, EpPlacement &placement, DisplayMode displayMode, EpBitmap *partial, EpBitmap *force, EpRegion *updateRegion) {
     uint64_t start = esp_timer_get_time();
     uint64_t total = esp_timer_get_time();
     if (!source) {
@@ -145,11 +162,14 @@ void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, Display
         return;
     }
     if (updateRegion) // make pixels outside updateRegion not update
-        memcpy(epepd->getRedRam()->_getBuffer(), epepd->getBwRam()->_getBuffer(), (uint32_t(epepd->EPD_WIDTH) * epepd->EPD_HEIGHT) >> 3);
+        memcpy(epepd->getRedRam()->bitmap, epepd->getBwRam()->bitmap, uint32_t(epepd->EPD_WIDTH) * epepd->EPD_HEIGHT / 8);
 
     EpRegion region = EpRegion::_testAndAlign(updateRegion, placement, epepd->EPD_WIDTH, epepd->EPD_HEIGHT);
     Serial.printf("[epepd] Updating region X from %d to %d, Y from %d to %d, that is %d%% of a full frame!\n",
-                  region.x, region.x + region.w, region.y, region.y + region.h, int(100.f * region.h * region.w / epepd->EPD_WIDTH / epepd->EPD_HEIGHT));
+                  region.x, region.x + region.w - 1, region.y, region.y + region.h - 1, int(100.f * region.h * region.w / epepd->EPD_WIDTH / epepd->EPD_HEIGHT));
+
+    auto redByteStart = (uint8_t *) epepd->getRedRam()->bitmap;
+    auto bwByteStart = (uint8_t *) epepd->getBwRam()->bitmap;
 
     switch (displayMode) {
         case FIX:
@@ -157,6 +177,9 @@ void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, Display
             epepd->writeLUT(lut_FIX);
             epepd->writeToDisplay();
             epepd->updateDisplay();
+            break;
+        case INIT:
+            clear();
             break;
         case GC2_FULL:
         case DU2:
@@ -166,8 +189,10 @@ void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, Display
             uint8_t par = (partial) ? 0x00 : 0xFF; // partial update
             uint8_t fce = 0x00; // force update
 
-            for (int16_t y = region.y; y < region.y + region.h; y++) {
-                for (int16_t x = region.x; x < region.x + region.w; x += 8) {
+            for (int32_t y = region.y; y < region.y + region.h; y++) {
+                auto redByte = redByteStart + ((y * epepd->EPD_WIDTH) + region.x) / 8;
+                auto bwByte = bwByteStart + ((y * epepd->EPD_WIDTH) + region.x) / 8;
+                for (int32_t x = region.x; x < region.x + region.w; x += 8) {
                     for (int16_t dx = 0; dx < 8; dx++) {
                         src |= (source->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                         if (partial) // TODO: this has potential of reading 8 bits at a time... but it may be misaligned due to placement...
@@ -176,10 +201,10 @@ void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, Display
                             fce |= (force->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                     }
 
-                    old = epepd->getBwRam()->_get8MonoPixels(x, y);
+                    old = *bwByte;
                     // derived from good old Kmap
-                    epepd->getRedRam()->_set8MonoPixels(x, y, (~src & fce) | (old & ~fce));
-                    epepd->getBwRam()->_set8MonoPixels(x, y, (src & (fce | par)) | (old & ~(fce | par)));
+                    *(redByte++) = (~src & fce) | (old & ~fce);
+                    *(bwByte++) = (src & (fce | par)) | (old & ~(fce | par));
                     src = 0x00;
                     par = (partial) ? 0x00 : 0xFF;
                     fce = 0x00;
@@ -209,23 +234,28 @@ void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, Display
             uint8_t fce = 0x00; // force update
 
             for (int16_t y = region.y; y < region.y + region.h; y++) {
+                auto redByte = redByteStart + ((y * epepd->EPD_WIDTH) + region.x) / 8;
+                auto bwByte = bwByteStart + ((y * epepd->EPD_WIDTH) + region.x) / 8;
+
                 for (int16_t x = region.x; x < region.x + region.w; x += 8) {
                     for (int16_t dx = 0; dx < 8; dx++) {
                         src |= (source->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
-                        if (partial)
+                        if (partial) {
+//                            Serial.printf("%s", (partial->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) ? ".." : "@@");
                             par |= (partial->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
+                        }
                         if (force)
                             fce |= (force->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                     }
-
-                    old = epepd->getBwRam()->_get8MonoPixels(x, y);
+                    old = *bwByte;
                     // derived from good old Kmap
-                    epepd->getRedRam()->_set8MonoPixels(x, y, old);
-                    epepd->getBwRam()->_set8MonoPixels(x, y, (src & (fce | par)) | (old & ~(fce | par)));
+                    *(redByte++) = old;
+                    *(bwByte++) = (src & (fce | par)) | (old & ~(fce | par));
                     src = 0x00;
                     par = (partial) ? 0x00 : 0xFF;
                     fce = 0x00;
                 }
+//                Serial.printf("\n");
             }
             Serial.printf("[epepd] EpPartialDisplay (round 1) write ram took %lldus\n", esp_timer_get_time() - start);
 
@@ -235,6 +265,9 @@ void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, Display
             epepd->updateDisplay();
 
             for (int16_t y = region.y; y < region.y + region.h; y++) {
+                auto redByte = redByteStart + ((y * epepd->EPD_WIDTH) + region.x) / 8;
+                auto bwByte = bwByteStart + ((y * epepd->EPD_WIDTH) + region.x) / 8;
+
                 for (int16_t x = region.x; x < region.x + region.w; x += 8) {
                     for (int16_t dx = 0; dx < 8; dx++) {
                         src |= (source->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
@@ -244,10 +277,10 @@ void EpPartialDisplay::display(EpBitmap* source, EpPlacement &placement, Display
                             fce |= (force->getPixel(placement.getSourcePos(x + dx, y)) & 0x80) >> dx;
                     }
 
-                    old = epepd->getBwRam()->_get8MonoPixels(x, y);
+                    old = *bwByte;
                     // derived from good old Kmap
-                    epepd->getRedRam()->_set8MonoPixels(x, y, (fce & ~old) | (par & ~fce & src) | (~(par | fce) & old));
-                    epepd->getBwRam()->_set8MonoPixels(x, y, (src & (fce | par)) | (old & ~(fce | par)));
+                    *(redByte++) = (fce & ~old) | (par & ~fce & src) | (~(par | fce) & old);
+                    *(bwByte++) = (src & (fce | par)) | (old & ~(fce | par));
                     src = 0x00;
                     par = (partial) ? 0x00 : 0xFF;
                     fce = 0x00;
@@ -270,5 +303,6 @@ void EpPartialDisplay::clear() {
     epepd->writeLUT(lut_INIT);
     epepd->writeToDisplay();
     epepd->updateDisplay();
+    Serial.printf("[epepd] Cleared display\n");
 }
 

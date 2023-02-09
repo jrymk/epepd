@@ -24,8 +24,7 @@ const uint8_t Epepd::lut_GC4[] PROGMEM = {
 
 
 Epepd::Epepd(int16_t csPin, int16_t dcPin, int16_t rstPin, int16_t busyPin) :
-        redRam(EPD_WIDTH, EPD_HEIGHT),
-        bwRam(EPD_WIDTH, EPD_HEIGHT),
+        redRam(EPD_WIDTH, EPD_HEIGHT), bwRam(EPD_WIDTH, EPD_HEIGHT),
         spi(&SPI), // GxEPD2 uses 4Mhz, Waveshare example 2Mhz, we're using 40Mhz! (tbh it's barely faster)
         spiSettings(40000000, MSBFIRST, SPI_MODE0) {
     this->csPin = csPin;
@@ -43,10 +42,6 @@ void Epepd::init() {
     hwReset();
     pinMode(busyPin, INPUT);
     spi->begin();
-    redRam.setBitmapShapeBlendMode(EpBitmap::BITMAP_ONLY);
-    bwRam.setBitmapShapeBlendMode(EpBitmap::BITMAP_ONLY);
-    redRam.allocate();
-    bwRam.allocate();
     Serial.printf("[epepd] Display resolution: %d*%d\n", EPD_WIDTH, EPD_HEIGHT);
 }
 
@@ -56,7 +51,6 @@ void Epepd::initDisplay() {
         waitUntilIdle();
         waitingForUpdateCompletion = false;
         Serial.printf("[epepd] EpGreyscaleDisplay waited %lldus while display updating\n", esp_timer_get_time() - start);
-
     }
 
     uint64_t start = esp_timer_get_time();
@@ -95,7 +89,7 @@ void Epepd::initDisplay() {
         writeData(0xC0);
         writeData(0x40); // level 1?
 
-        setBorder(BORDER_LUT0);
+        setBorder(borderStyle);
 
         writeCommand(0x21); // display update control
         writeData(0x00); // normal
@@ -130,7 +124,7 @@ void Epepd::initDisplay() {
     Serial.printf("[epepd] Init display took %lldus\n", esp_timer_get_time() - start);
 }
 
-void Epepd::writeLUT(const uint8_t* data) {
+void Epepd::writeLUT(const uint8_t *data) {
     if (waitingForUpdateCompletion) { // from experimentation, it seems that writing LUT requires BUSY flag = 0
         waitUntilIdle();
         waitingForUpdateCompletion = false;
@@ -154,6 +148,7 @@ void Epepd::writeLUT(const uint8_t* data) {
 
 void Epepd::setBorder(BorderStyle border) {
     writeCommand(0x3C);
+    borderStyle = border;
     switch (border) {
         case BORDER_HI_Z:
             return writeData(0b11000000);
@@ -174,17 +169,18 @@ void Epepd::writeToDisplay() {
         waitingForUpdateCompletion = false;
     }
     uint64_t start = esp_timer_get_time();
-    uint32_t size = uint32_t(EPD_WIDTH) * uint32_t(EPD_HEIGHT) / 8;
+    uint32_t size = uint32_t(EPD_WIDTH) * EPD_HEIGHT / 8;
     writeCommand(0x26);
     writeDataBegin();
-    uint8_t* byte = redRam._getBuffer();
+    auto byte = (uint8_t *) redRam.bitmap;
     for (uint32_t b = 0; b < size; b++)
         writeDataCont(*(byte++));
     writeDataEnd();
 
     writeCommand(0x24);
     writeDataBegin();
-    byte = bwRam._getBuffer();
+    byte = (uint8_t *) bwRam.bitmap;
+//    byte = reinterpret_cast<uint8_t *>(bwRam.bitmap);
     for (uint32_t b = 0; b < size; b++)
         writeDataCont(*(byte++));
     writeDataEnd();
@@ -203,7 +199,7 @@ void Epepd::updateDisplay() {
     writeData(0xCF); // display mode 2
 
     writeCommand(0x20); // activate
-//    waitUntilIdle(); // why would I wait for it? I could update the next frame in the meantime!
+    // waitUntilIdle(); // why would I wait for it? I could update the next frame in the meantime!
     waitingForUpdateCompletion = true;
     Serial.printf("[epepd] Display update took %lldus\n", esp_timer_get_time() - start);
 }
@@ -254,10 +250,11 @@ void Epepd::powerOff() {
             Enable clock signal -> Enable Analog   C0
             Disable Analog -> Disable clock signal 03
 
-           Not sure where 0x83 came from (got from GxEPD2), but with 0x03 it will busy timeout
+           Not sure where 0x83 came from (got from Waveshare example), but with 0x03 it will busy timeout
            Maybe I'm reading the wrong datasheet? Maybe it isn't actually sleeping (although the wake command works after powering off)
          */
         writeCommand(0x20);
+        Serial.printf("[epepd] Powered off\n");
         waitUntilIdle();
     }
     isPoweredOn = false;
@@ -289,13 +286,11 @@ void Epepd::setRamWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
 }
 
 
-EpBitmapMono* Epepd::getRedRam() {
-    // no need to unpair, just waste slightly more time
-//    redRam._linkBitmap(nullptr);
+EpEpdRam *Epepd::getRedRam() {
     return &redRam;
 }
 
-EpBitmapMono* Epepd::getBwRam() {
+EpEpdRam *Epepd::getBwRam() {
     return &bwRam;
 }
 

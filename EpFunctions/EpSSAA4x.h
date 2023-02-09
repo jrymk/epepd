@@ -11,10 +11,6 @@ public:
 
     uint8_t getPixel(std::pair<int16_t, int16_t> coord) override { return getPixel(coord.first, coord.second); }
 
-    uint8_t getBitmapPixel(uint32_t x, uint32_t y) override;
-
-    uint16_t getShapePixel(int16_t x, int16_t y) override;
-
     void setPixel(int16_t x, int16_t y, uint8_t color) override;
 
     /// TODO: override primitives drawing from Adafruit_GFX. Modified Adafruit_GFX will be needed...
