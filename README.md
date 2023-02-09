@@ -72,7 +72,7 @@ https://user-images.githubusercontent.com/39593345/213897907-6412e682-08c0-4cbb-
 }
 delay(1000);
 { /// draw overlay menu with partial display
-    // create a partialUpdateMask for partial display
+    // create a mask for partial display
     EpBitmapFast updateMask(280, 480, 1);
     updateMask.setBitmapShapeBlendMode(EpBitmapFast::SHAPES_ONLY); // use shapes mode to save memory space instead of bitmap
     updateMask.setRectangle(10, 40, 200, 400, 0xFF, EpShape::ADD);
@@ -93,62 +93,27 @@ delay(1000);
     gfxBuffer.setFont(&HarmonyOS_Sans_Medium8pt7b);
     for (int f = 0; f < 20; f++) {
         highlightedItem = f;
-        for (int i = 0; i < 20; i++) {
-            const int margin = 2, itemHeight = 18;
-            gfxBuffer.fillRect(10 + margin, 40 + margin + itemHeight * i, 200 - 2 * margin, itemHeight - 2 * margin, (highlightedItem == i) ? GFX_BLACK : GFX_WHITE);
-            gfxBuffer.setTextColor((highlightedItem == i) ? GFX_WHITE : GFX_BLACK);
-            gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
-            gfxBuffer.print(str[i]);
-        }
-        // parameters: source image, display mode (A2 for animation), partial display partialUpdateMask, force update partialUpdateMask (first draw will be force update)
-        partialDisplay.display(&gfxBuffer, EpPartialDisplay::A2, &updateMask, (f == 0) ? &updateMask : nullptr);
+        // clear previous
+        gfxBuffer.gfxUpdatedRegion.reset(); // reset the "bounds of updated pixels" after displaying
+        int i = previousHighlightedItem;
+        gfxBuffer.fillRect(10 + margin, 40 + margin + itemHeight * i, 200 - 2 * margin, itemHeight - 2 * margin, GFX_WHITE);
+        gfxBuffer.setTextColor(GFX_BLACK);
+        gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
+        gfxBuffer.print(str[i]);
+        // highlight current
+        i = highlightedItem;
+        gfxBuffer.fillRect(10 + margin, 40 + margin + itemHeight * i, 200 - 2 * margin, itemHeight - 2 * margin, GFX_BLACK);
+        gfxBuffer.setTextColor(GFX_WHITE);
+        gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
+        gfxBuffer.print(str[i]);
+        // display (with windowed update)
+        partialDisplay.display(gfxBuffer, placement, EpPartialDisplay::A2, &updateMask, nullptr, &gfxBuffer.gfxUpdatedRegion);
+        // we did nothing extra, just calling gfx draw functions. the region where pixels has been updated (gfxUpdatedRegion) has been determined automatically
+        previousHighlightedItem = highlightedItem;
     }
 }
 ```
 
-You may or may not have found out that... it's slow. There is no delay for each `int f` iteration.\
-Well... I'll try to optimize it. Getting pixels from EpBitmaps is way too slow (each call about 1us, but there are 280*480=134,400 pixels...)
-
-Update: Well actually it isn't *that* slow, this is just from processing that many pixels one by one.
-
-Here are the benchmarks for processing a whole frame:
-
-```
-134400 gfxBuffer.getPixel calls                took  77668us, 0.577917us/call (like reading from a 4bpp image) 
-134400 epepd.getBwRam()->getPixel calls        took  78746us, 0.585915us/call (like reading from a 1bpp image)
- 16800 epepd.getBwRam()->_streamOutBytes calls took   3061us, 0.182262us/call (like reading old frame data)
- 16800 epepd.getBwRam()->_streamInBytes calls  took   3057us, 0.182024us/call (like writing display frame data)
-134400 gfxBuffer.drawPixel calls               took  98549us, 0.733281us/call (like Adafruit_GFX fillScreen, unoptimized)
-134400 GFXcanvas1.getPixel calls               took  54512us, 0.405603us/call (to see how Adafruit performs)
-134400 GFXcanvas1.drawPixel calls              took 107966us, 0.803318us/call (to see how Adafruit performs)
-134400 GFXcanvas8.getPixel calls               took  41009us, 0.305164us/call (to see how Adafruit performs)
-134400 GFXcanvas8.drawPixel calls              took  70193us, 0.522299us/call (to see how Adafruit performs)
-```
-
-Considering Adafruit_GFX doesn't split the buffer into chunks (not even one 8 bit full frame buffer will fit in memory, on boot my ESP32 only has a largest
-block of only 113792 bytes long, and there are no 2 bit options, or 3, or 4...),
-I think I'm actually doing fine. At least I'm now sure that I'm not a whole magnitude slower or something. I thought the ESP32 were faster than this though,
-disappointing...
-
-So the next goal will be to optimize by lowering pixel count, by supporting windowed update.
-
-Another update:\
-I realized I can't even write to the display while it is still updating.
-
-```
-[epepd] EpPartialDisplay calculate lut took 156320us (meanwhile display is still updating)
-[epepd] EpGreyscaleDisplay waited 350668us while display updating (still not done)
-[epepd] Init display took 137us (finally done, now I can send commands)
-[epepd] Write LUT took 112us
-[epepd] Sending two sets of display buffer took 35385us (reducing this is the only hope of increasing update rates)
-[epepd] Display update took 28us (just a command, nothing updated yet)
-```
-
-So although I *did* waste a whole 160ms on writing to the buffer on the ESP32 and have to spend another 36ms sending it to the display, I still can't
-refresh the screen any faster. The time spent updating (for the current A2 lut) is 156ms + 350ms = about half a second.\
-Of course, any optimization in the "epepd function" part leaves more time for Adafruit_GFX drawing, data processing, etc.
-
-Another update:\
 You can now determine an update region from Adafruit_GFX functions and then pass it to the display function. For the example above, the update time is down to
 18ms!
 Because finding out the bounds of "updated pixels" is not always simple, or require additional logic. Check the code below to see how easy it is to implement
@@ -159,32 +124,72 @@ windowed update!
 [epepd] EpPartialDisplay calculate lut took 17237us
 ```
 
-and the code change:
+#### Example to combine partial updates in one display update
+Example pulled from [jrymk/pdtvtPaper](https://github.com/jrymk/pdtvtPaper)
 
 ```cpp
-partialDisplay.display(gfxBuffer, placement, EpPartialDisplay::A2, &updateMask, &updateMask, nullptr);
+bool greyscaleRefresh = false;
+EpRegion updateRegion;
+EpBitmapMono partialUpdateMask(gfxBuffer.width(), gfxBuffer.height());
 
-for (int f = 0; f < 20; f++) {
-    highlightedItem = f;
-    // clear previous
-    gfxBuffer.gfxUpdatedRegion.reset(); // reset the "bounds of updated pixels" after displaying
-    int i = previousHighlightedItem;
-    gfxBuffer.fillRect(10 + margin, 40 + margin + itemHeight * i, 200 - 2 * margin, itemHeight - 2 * margin, GFX_WHITE);
-    gfxBuffer.setTextColor(GFX_BLACK);
-    gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
-    gfxBuffer.print(str[i]);
-    // highlight current
-    i = highlightedItem;
-    gfxBuffer.fillRect(10 + margin, 40 + margin + itemHeight * i, 200 - 2 * margin, itemHeight - 2 * margin, GFX_BLACK);
-    gfxBuffer.setTextColor(GFX_WHITE);
-    gfxBuffer.setCursor(10 + margin + 4, 40 + margin + itemHeight * i + 11);
-    gfxBuffer.print(str[i]);
-    // display (with windowed update)
-    partialDisplay.display(gfxBuffer, placement, EpPartialDisplay::A2, &updateMask, nullptr, &gfxBuffer.gfxUpdatedRegion);
-    // we did nothing extra, just calling gfx draw functions. the region where pixels has been updated (gfxUpdatedRegion) has been determined automatically
-    previousHighlightedItem = highlightedItem;
+void refresh() {
+    if (greyscaleRefresh) {
+        greyscaleDisplay.display(&gfxBuffer, epdPlacement, EpGreyscaleDisplay::GC16);
+        greyscaleRefresh = false;
+    }
+    else {
+        partialUpdateMask.setBitmapShapeBlendMode(EpBitmap::SHAPES_ONLY);
+        partialDisplay.display(&gfxBuffer, epdPlacement, EpPartialDisplay::GC2_PARTIAL, &partialUpdateMask, &partialUpdateMask, &updateRegion);
+    }
+    updateRegion.reset();
+    partialUpdateMask.clearShapes();
+    gfxBuffer.gfxUpdatedRegion.reset();
 }
+
+// greyscale background
+void drawBase() {
+    partialDisplay.clear();
+
+    gfxBuffer.fillScreen(COLOR_BACKGROUND);
+    gfxBuffer.fillRect(DASHBOARD_STATUS_BAR_LINE_MARGIN, DASHBOARD_STATUS_BAR_HEIGHT,
+                       gfxBuffer.width() - 2 * DASHBOARD_STATUS_BAR_LINE_MARGIN, DASHBOARD_STATUS_BAR_LINE_THICKNESS, COLOR_SEPARATOR);
+
+    greyscaleRefresh = true;
+}
+
+// b/w datafields that can be partial updated
+void updateIPAddressField() {
+    static EpRegion prevRegion;
+    // gfxUpdatedRegion should be empty now
+    gfxBuffer.fillRect(prevRegion.x, prevRegion.y, prevRegion.w, prevRegion.h, COLOR_BACKGROUND);
+
+    // discard the updated region from the background rect, because it is just prevRegion, and we want to know the region covering the new text only
+    gfxBuffer.gfxUpdatedRegion.reset();
+
+    drawText(gfxBuffer, DASHBOARD_STATUS_BAR_LINE_MARGIN + 2, DASHBOARD_STATUS_BAR_HEIGHT - 4, HALIGN_LEFT, VALIGN_BASELINE,
+             COLOR_BODY, &FONT_SMALL,
+             WiFi.localIP().toString().c_str());
+    // gfxUpdatedRegion includes the new text only
+
+    // add to partial update mask
+    partialUpdateMask.pushShape(gfxBuffer.gfxUpdatedRegion.getEpShape()); // this includes the new text
+    partialUpdateMask.pushShape(prevRegion.getEpShape()); // this includes the background rect for covering up
+
+    // add to update region
+    updateRegion.include(gfxBuffer.gfxUpdatedRegion, noPlacement); // this includes the new text
+    updateRegion.include(prevRegion, noPlacement); // this includes the background rect for covering up
+
+    // set prevRegion covering the new text only. doing the regions for the background and text separately is all for this
+    prevRegion = gfxBuffer.gfxUpdatedRegion;
+
+    // can reset after including to the global updateRegion, and allows other fields to know the smallest rect covering the updated region
+    gfxBuffer.gfxUpdatedRegion.reset();
+}
+
+// other fields...
+
 ```
+
 
 ### Anti-aliasing
 
